@@ -1,7 +1,33 @@
-# Architecture
-Browser (React) → Supabase Auth (JWT) → (a) Data API/PostgREST reads under RLS, (b) Edge Functions for all writes and file bytes.
-Edge Function flow: verify token (`auth.getUser`) → validate input → `svc_*` SQL function (authorise + change + audit in ONE transaction, actor passed explicitly from the verified token, executable by service_role only) → only then private Storage via service role.
-Schemas: `public` (tables, `search_documents`, `dashboard_stats`, `svc_*`), `app` (internal helpers, not exposed by the API). Migrations 0100 core → 0200 access helpers → 0300 audit chain → 0400 RLS/privileges → 0500 svc functions → 0600 bucket → 0700 owner-controlled visibility for signed-in users and read-only previews → 0800 upload-time named sharing, audited recipient lookup and sender display names → 0900 edit-grantees may download older versions.
-Why svc_* take an actor argument: the Edge Function is the trusted caller and already verified identity; SQL is the single place decisions and audit happen. Direct client calls to them are denied (tested).
-Storage keys: `<owner>/<document>/<random>`, server-generated, enforced again in SQL, never sent to clients. Deletion: soft-delete row (tombstone), revoke all grants, purge all version objects.
-Roles: admin (audit, user roles; no document access), owner (create docs), viewer (default). Edit/read are per-document grants.
+# Architecture (implemented design; deployment status is separate)
+
+## Components and flow
+
+- **Browser:** React 18/Vite/TypeScript app in `frontend/`. Supabase JS handles sign-in/session and RLS-protected reads. UI route guards are not security controls.
+- **Identity:** Supabase Auth issues a JWT. Every Edge Function has gateway `verify_jwt=true` and the shared `wrap()` calls Auth `getUser()` for the presented bearer token. The trusted actor ID comes only from that result.
+- **Data API:** PostgREST exposes `public`/`graphql_public`, not internal `app`. Authenticated reads of profiles/documents/versions/permissions/audit events are filtered by RLS and column grants. `search_documents` and `dashboard_stats` are SECURITY INVOKER.
+- **Writes and bytes:** Browser calls one of nine Edge Functions. Handler validates input and calls a service-role-only `public.svc_*` function. SQL reads role from `public.profiles`, evaluates current access via `app.access_level`/`app.authorize_or_deny`, applies operation and audit in a transaction. Only after an authorization/audit result does the Edge Function access the private Storage bucket with its service-role client.
+- **Storage:** Bucket `documents` is private and has a restrictive policy denying `anon`/`authenticated`. Storage keys are server-generated `<owner>/<document>/<random UUID>` paths and never returned to browser clients. No signed URL flow exists.
+
+## Schemas and migration sequence
+
+- `public`: profiles, documents, versions, permission grants, audit tables; client-safe search/dashboard functions and service operations.
+- `app`: internal helper functions and audit implementation; not exposed by Supabase API schemas.
+- Migrations in lexical order: 0100 core tables/types/triggers; 0200 access helpers; 0300 append-only hash-chain audit; 0400 RLS/privileges; 0500 service operations/read helpers; 0600 private bucket/policy; 0700 any-profile uploads, global-to-authenticated visibility, preview and edit-only current downloads; 0800 upload-time sharing, bounded/audited recipient search, sender names; 0900 enables active editors as well as owners to download historical versions.
+
+Never edit an applied migration on a shared database. Create a new timestamped migration and inspect migration history before push. At the most recent CLI inspection (2026-10-19), hosted migration history had 0100–0800 applied, with 0900 pending; see `docs/PROJECT_STATUS.md` for timestamped state. Applying 0900 is still required to enable editor historical downloads on that hosted database.
+
+## Authorization concepts
+
+- Every registered profile may upload and own documents; `admin` is not a document grant.
+- Owner may read/preview/download all versions, edit/replace, share/change visibility/revoke, and delete.
+- Edit grant may read/preview/download current and historical versions, and edit/replace; cannot share/revoke/delete/change visibility.
+- Read grant and global-to-signed-in access permit metadata/current preview only; no attachment downloads or edits.
+- Every request checks current state. Revoke blocks subsequent requests after commit; an already-authorized in-flight request may complete.
+
+## Auditing and failure handling
+
+`app.write_audit` inserts into append-only `audit_events`; before-insert trigger assigns sequence, previous hash and event hash while locking `audit_chain_head`. Operation/authorization service calls write the relevant audit decision. If a required audit or DB operation fails, the request fails; bytes are fetched only after authorization succeeds. `lock_timeout=5s` bounds audit serialization waits. The chain is tamper-evident for ordinary app users, not tamper-proof against database owners. See `docs/security-design.md`.
+
+## Deployment boundary
+
+Source code and a successful CLI deployment are distinct claims. Hosted database/function state must be queried from Supabase CLI/dashboard. The observed linked project ref and migrations are recorded in `docs/PROJECT_STATUS.md`; migration 0900 was pending in the latest inspection described there. Real Auth/Storage integration and full browser E2E remain separate validation tasks.

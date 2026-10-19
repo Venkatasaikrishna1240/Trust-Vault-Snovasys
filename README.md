@@ -1,41 +1,78 @@
-# TrustVault — secure document sharing (Supabase + React)
+# TrustVault
 
-Every signed-in account can upload and own documents, with named-user read/edit access or optional visibility to all signed-in accounts; immediate revocation; mandatory audit trail; security enforced in
-PostgreSQL (RLS), private Storage and Edge Functions — never in the React UI.
-Start with **docs/PROJECT_STATUS.md** (what is done / not done / tested).
+TrustVault is a secure document-sharing application: signed-in users upload PDF/PNG/JPEG documents, retain ownership, and grant named people read or edit access. Owners may also publish a document to every signed-in TrustVault account. Authorization is enforced by PostgreSQL RLS/service functions and Supabase Edge Functions; React visibility controls are user experience, not the security boundary.
 
-## Layout
-`frontend/` React+Vite+TS+Tailwind · `supabase/migrations/` schema, RLS, audit chain, Storage bucket and authenticated-wide visibility ·
-`supabase/functions/` 8 Edge Functions (+`_shared`) · `supabase/tests/` DB + HTTP security tests ·
-`scripts/` provisioning, local test runner, mutation test, packaging · `docs/` design docs.
+## Implemented features
 
-## Run locally (needs Node 20+, Docker, Supabase CLI)
-```bash
-npm install && npm --prefix frontend install
-supabase start                      # applies supabase/migrations + seed.sql (local demo users)
-supabase functions serve --env-file supabase/functions/.env   # copy .env.example first
-cp frontend/.env.example frontend/.env   # fill URL + anon key printed by `supabase start`
-npm run dev                          # http://localhost:5173 (or npm --prefix frontend run dev)
-```
-The shared Edge Function CORS handler accepts HTTP localhost/loopback on any port for development, so Vite port changes (5173, 5176, etc.) do not require CORS-secret edits. This applies only after the updated functions are deployed; non-local frontend origins must still be explicitly listed in `ALLOWED_ORIGINS`. A browser network error can mean a required function is not deployed to the Supabase project configured in `frontend/.env`; deploy all functions after applying migrations 0700 and 0800.
-Local demo logins (from `seed.sql`, LOCAL ONLY): admin@/owner@/owner2@/viewer@/outsider@`trustvault.test`,
-password `LocalDemo-Only-1234`. Then optionally `npm run provision:demo` to create fictional documents/grants via the real API
-(env vars in the script header). For hosted projects never use seed.sql — use `provision-demo.mjs` (random password).
+- Supabase email/password sign-in and sign-up; database profiles start as `viewer`.
+- Every registered profile may upload and own documents. Account role does not grant access to another user's private documents.
+- Named recipient search by display name/email, multi-recipient upload sharing, reader/editor selection, grant changes, individual or batch revoke.
+- Optional visibility to all signed-in accounts (not anonymous/public-link access).
+- Readers can view metadata and get an audited inline preview; owners/editors can download current and historical versions. Editors can edit/replace files but cannot share or delete. Owners control sharing and deletion.
+- Private Storage bucket, byte-level upload validation, server-generated object keys, SHA-256 checking on preview/download, and append-only hash-linked audit events.
+- Admin user-role management (`owner`/`viewer`) and read-only audit query/chain verification. Admin status alone does not provide document access.
 
-## Tests
-| Command | Needs | What |
-|---|---|---|
-| `npm --prefix frontend test` / `run build` | Node | UI tests, type-check + build |
-| `npm run typecheck:functions` | Deno | type-checks Edge Functions |
-| `npm run test:backend:local` | PostgreSQL 16 server, `postgrest` + `deno` binaries (`TV_POSTGREST_BIN`, `TV_DENO`) | 156 DB + 22 HTTP security tests, no Docker |
-| `npm run test:mutation` | same | breaks the authorisation check, expects failures |
-See docs/testing.md for exactly what each run does and does not prove.
+## Stack and architecture
 
-## Environment variables
-Frontend (`frontend/.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (publishable key only).
-Edge Functions (secrets): `ALLOWED_ORIGINS` (explicit list, no `*`), `MAX_UPLOAD_BYTES` (default 10 MiB; bucket limit is 10 MiB in migration 0600).
-`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY` are injected by Supabase. **The service-role key never goes in the frontend or in Git.**
+- Frontend: React 18, Vite, TypeScript, Tailwind CSS, Supabase JS.
+- Backend: Supabase Auth, PostgreSQL, RLS, private Storage, Deno TypeScript Edge Functions; Supabase CLI for migrations/deployments; Vercel configuration in `frontend/`.
+- Flow: browser Auth token → Edge Function verifies token with `auth.getUser()` → service-role-only `svc_*` database operation authorizes and audits → only after success the function accesses private Storage.
+- Main directories: `frontend/src/{pages,features,services}`; `supabase/migrations`; `supabase/functions`; `supabase/tests`; `scripts`; `docs`.
+- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient search/sender names, 0900 editor history downloads.
 
-## Deploy (summary — see docs/deployment.md)
-`supabase link --project-ref <ref> && supabase db push && supabase functions deploy && supabase secrets set ALLOWED_ORIGINS=https://<your-vercel-domain>`;
-Vercel: root `frontend/`, set the two VITE_ vars. Enable e-mail confirmation in Auth. **Not deployed by the author of this repo.**
+See [architecture](docs/architecture.md), [permission model](docs/permission-model.md), and [security design](docs/security-design.md).
+
+## Requirements and local setup
+
+Requires Node.js 20+, npm, Docker Desktop, and Supabase CLI. The frontend-only build does not require Docker. The full local backend requires the CLI's Docker services.
+
+1. At the repository root run `npm install` and `npm --prefix frontend install`.
+2. Start Docker Desktop. Run `npx supabase start`. It applies `supabase/migrations/` and `supabase/seed.sql`; the seed is strictly local-development-only.
+3. Create `frontend/.env` with the local Supabase URL and publishable/anon key printed by the CLI:
+	- `VITE_SUPABASE_URL=http://127.0.0.1:54321`
+	- `VITE_SUPABASE_ANON_KEY=<local-publishable-or-anon-key>`
+	Never use a service-role/secret key in frontend configuration.
+4. `supabase/functions/.env` supplies local `ALLOWED_ORIGINS` and `MAX_UPLOAD_BYTES`. Run `npx supabase functions serve --env-file supabase/functions/.env` in its own terminal.
+5. Run `npm run dev` and open the Vite URL (normally `http://localhost:5173`). The current local Edge Function source allows HTTP localhost/loopback on any development port; non-local origins must be explicitly configured. Redeploy functions after source changes. If you change frontend project URL/key, restart Vite.
+
+Local seed accounts (fictional; **never hosted**): `admin@trustvault.test`, `owner@trustvault.test`, `owner2@trustvault.test`, `viewer@trustvault.test`, `outsider@trustvault.test`; password for all is `LocalDemo-Only-1234`. `scripts/provision-demo.mjs` exists, but currently its upload helper omits the required `is_global` and `share_permission` multipart fields; it is not compatible with the current upload handler until corrected. Do not rely on it for demo provisioning. See [local development](docs/local-development.md).
+
+## Environment and secrets
+
+- Frontend `frontend/.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public/publishable key only).
+- Edge Function secrets: `ALLOWED_ORIGINS` (comma-separated exact non-local origins; no wildcard), `MAX_UPLOAD_BYTES` (implementation allows up to 20 MiB, but the current Storage bucket is capped at 10 MiB, so keep the effective upload limit at or below 10 MiB).
+- Supabase injects `SUPABASE_URL`, anon/publishable key and service-role/secret key into Edge Functions. Never expose service-role/secret values in frontend env, source control, documentation, or chat.
+- No `.env.example` files are currently present. Make local env files yourself from the placeholder names above and keep them untracked.
+
+## Run and test
+
+- Frontend dev server: `npm run dev`.
+- Frontend production build: `npm --prefix frontend run build`.
+- Frontend tests: `npm --prefix frontend test`.
+- Edge Function type check: `npm run typecheck:functions` (Deno required).
+- Backend DB/API tests: `npm run test:backend:local` (Bash, disposable PostgreSQL 16 test cluster, PostgREST binary, Deno, and helper tools; see [testing](docs/testing.md)).
+- DB or API suite separately: `npm run test:db`, `npm run test:api` once the harness services are running/configured.
+- Mutation test: `npm run test:mutation`; intentionally changes the test authorization helper and expects negative tests to fail under the mutant. It rebuilds its disposable database.
+- `npm run test:functions` is currently a placeholder; there are no separate Deno unit tests.
+
+Tests do not substitute for real Supabase Auth/Storage or browser E2E checks. The latest recorded frontend evidence in this workspace is build success and 18 passing tests, 1 existing todo; Deno function type-check succeeded. Backend suite results documented in earlier history are historical, not a run of the newest schema change. See [test scope/status](docs/testing.md).
+
+## Database and deployment
+
+For a new hosted project, create the Supabase project, verify the `project_ref`, then use `npx supabase login`, `npx supabase link --project-ref <ref>`, review `npx supabase migration list --linked` and `npx supabase db push --dry-run`, and only then push. Deploy Edge Functions with `npx supabase functions deploy`; configure production `ALLOWED_ORIGINS`; configure Auth site/redirect URLs and email confirmation. Provision the first admin via a trusted operator process after the Auth profile exists. Configure Vercel root directory as `frontend` and set the two public VITE variables.
+
+**Current observed deployment (2026-10-19):** linked project ref `twyfmmtzbcjwlkfwwijm` had migrations 0100–0800 recorded and all nine functions active at last CLI inspection; migration 0900 was still pending. Thus editor historical-version download behavior is not yet live until 0900 is applied. A localhost:5176 preflight returned 204, but authenticated operations and the latest dynamic-CORS code deployment were not confirmed. Check current linked target before changing any hosted database. Detailed steps: [deployment](docs/deployment.md).
+
+## Known limitations and unfinished work
+
+- No antivirus, content sanitization, or polyglot-file detection; only PDF/PNG/JPEG signatures/terminators, extension/MIME consistency and size are checked.
+- Preview sends bytes to the browser, so screenshots/copying cannot be prevented. Downloads already obtained cannot be recalled.
+- A request authorized before a revoke commits may finish; every subsequent request re-evaluates access. No signed URLs are used.
+- Audit chain is tamper-evident, not tamper-proof against database owners; writes serialize globally and use a 5-second lock timeout.
+- Storage deletion can be incomplete; soft-delete/access revocation occurs before byte purge, so inaccessible orphan objects may require cleanup. Backups/retention are not configured here.
+- Recipient lookup intentionally reveals limited matching registered names/emails (3-character minimum, 20 results, audited/rate-limited); exact grant calls can probe whether an email is registered.
+- No Playwright E2E suite; real hosted Auth/Storage/browser testing and Deno unit tests are not established. One frontend test is marked `todo`; the production JS bundle exceeds Vite's 500 KiB warning threshold.
+- Admin cannot promote accounts to admin through the app; initial/admin provisioning is out-of-band. Admin is not a document-access role.
+- The sign-up page's current explanatory sentence says an administrator can grant upload rights; this is stale UI copy. Current migration 0700 allows every profile-backed signed-in account to upload.
+- `scripts/provision-demo.mjs` does not send the currently required upload sharing fields, so its end-to-end provisioning flow is unfinished and is not verified.
+- Git history is unavailable because this workspace currently has no `.git` directory; no commit links can be provided.

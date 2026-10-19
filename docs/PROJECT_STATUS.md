@@ -1,8 +1,36 @@
-# PROJECT STATUS (2026-10-19)
-**Done & tested:** migrations 0100–0600 (schema, RLS, audit hash chain, svc functions, private bucket+policy); 8 Edge Functions (type-check ✔); 156 DB + 22 HTTP security tests pass; mutation test ✔; frontend builds, 17 tests pass, audit clean; docs.
-**Not done / not verified:** live `supabase start` run; real Auth login and real Storage API behaviour; seed.sql & provision-demo.mjs never executed; Playwright E2E; manual browser test of the UI (wiring to endpoints was only checked by code inspection); deployment (Vercel/Supabase); clean-clone test on another machine; demo video/write-up; Deno unit tests (`npm run test:functions` has none yet — file validation is covered by HTTP tests); dashboard storage figures untested in UI.
-**New local changes not yet applied to hosted projects or verified by a full backend run:** migration 0700 enables uploads for all registered accounts, owner-controlled visibility to all signed-in users, read-only inline preview, batch named-user grants, permission-level updates, and edit-only attachment downloads. Migration 0800 adds upload-time sharing/global visibility, audited and rate-limited recipient search by name/e-mail, and sender names on received documents. A further local CORS update allows any HTTP localhost/loopback port while requiring explicit non-local origins. Run migrations and deploy updated Edge Functions before using these features on hosted Supabase. The hosted screenshots show missing functions (404); local CORS edits alone cannot fix deployment state.
-**Follow-up migration 0900** changes version-history downloads to owners and current edit-grantees; read grants remain preview-only and revocation still removes access on the next request. Added API/DB/UI regression tests; deploy this migration before the new History-tab action works on hosted data.
-**Known issues:** 1 frontend component test is `it.todo` (mock-rejection reporting quirk; neutral 404 mapping covered in apiClient.test.ts). Frontend bundle >500 kB (no code splitting). `supabase/config.toml` unvalidated by CLI. Hash chain is tamper-evident only. Audit writes serialise globally. Owners can probe registered e-mails via grant. PROMPTS.md has no commit URLs (no git repo).
-**Next steps:** 1) `supabase start`, run app, click through all flows. 2) Point the api tests at the live stack (real tokens). 3) Real Storage direct-access test. 4) Run provision-demo; fix issues. 5) Deploy per docs/deployment.md. 6) Add Playwright for login→upload→share→revoke. 7) Record demo; add your own PROMPTS.md entries; `git init` and commit.
-**Key files:** supabase/migrations/*, supabase/functions/_shared/{core,handlers}.ts, supabase/tests/*, frontend/src/{services,pages,features}, scripts/*.
+# Project status and verification ledger
+
+Last reviewed: **2026-10-19**. Source review is not a production security certification. Status below is based on actual commands/results available in this workspace and linked Supabase CLI output.
+
+## Implemented in source
+
+- React/Vite/TypeScript app with authentication, dashboard, document search/details, upload, sharing/history, admin users and audit pages.
+- RLS-protected Data API reads; write/file routes through nine Edge Functions and service-role-only `svc_*` DB operations.
+- Private Storage, validation/hash checking, audited upload/replace/preview/download/delete/sharing/admin actions.
+- Migrations 0100–0900 in local source, including global signed-in visibility, upload-time recipients, and editor historical downloads (0900).
+
+## Checks actually run in this workspace
+
+- `npm --prefix frontend run build`: passed on 2026-10-19 after editor history UI work; Vite emitted a chunk-size warning (>500 KiB).
+- `npm --prefix frontend test`: passed on 2026-10-19 after editor history UI work: 4 files, 18 tests passed, 1 todo.
+- Deno check: `deno check --config supabase/functions/deno.json supabase/functions/*/index.ts supabase/functions/_shared/*.ts` passed on 2026-10-19.
+- Hosted CLI inspection: linked project `twyfmmtzbcjwlkfwwijm`; migrations 0100–0800 recorded, 0900 not recorded/pending; nine functions reported active at inspection time. Earlier five-function localhost preflight check returned 204 for local port 5176, but it did not test authenticated actions or actual file bytes.
+- Migration 0900 and updated DB/API tests were added after the observed hosted migration list. **Do not state migration 0900 is deployed.**
+
+## Historical evidence (not rerun for current source)
+
+Repository notes report earlier baseline results of 156 DB tests, 22 HTTP tests, and a passing mutation test; these are historical results for an earlier snapshot, not a full run after migrations 0700–0900. The test harness uses a Supabase SQL shim and in-memory storage and does not prove actual Auth/Storage API behavior. See `docs/testing.md`.
+
+## Not established / outstanding
+
+- Full DB/API test suites against the latest migrations, especially 0900.
+- Hosted migration 0900 applied and verified.
+- Signed-in browser smoke test for upload/share/revoke/admin role/audit and editor historical download.
+- Real hosted Storage direct-client denial and byte round-trip.
+- Playwright E2E, backup/retention checks, deployment on Vercel, clean-clone setup validation.
+- Deno unit tests (`npm run test:functions` is only a placeholder).
+- Git history/commit links: workspace has no `.git` directory. AI prompt records cannot be tied to commits.
+- Frontend bundle splitting; Vite warns the built JS chunk exceeds 500 KiB.
+- One frontend component case is intentionally `it.todo` due to a test-runner unhandled mocked rejection issue.
+
+Before presenting a capability as live, verify the specific deployment project's migration list and function versions, then record exact test commands/results here.

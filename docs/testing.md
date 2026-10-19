@@ -1,8 +1,32 @@
-# Testing — what ran, what it proves, what it doesn't
-Executed in the author's sandbox (Linux, PostgreSQL 16, PostgREST 12.2.12, Deno 2.9, Node 22):
-- **156 DB tests** (`supabase/tests/db`): RLS per table/role, anon denial, column privileges, function-exposure audit, Storage denial (+ restrictive policy vs. a broad permissive one), svc_* behaviour, revocation, audit append-only/hash chain/tamper/concurrency/fail-closed. Uses a Supabase *shim* (roles, `auth.uid()`, default privileges) — `supabase_shim.sql`.
-- **22 HTTP tests** (`supabase/tests/api`): the real Edge Function handlers + PostgREST: 401s, cross-user denial with no metadata/bytes, grants, immediate revocation, upload validation, direct Data-API writes denied, audit over HTTP, fail-closed. Harness differences: HS256 test-token verifier instead of the Auth server; in-memory object store instead of Storage API.
-- **Mutation test**: with `app.access_level` forced to 'owner', 25 tests fail (baseline passes).
-- **Frontend**: build + 17 tests pass, 1 `it.todo`; `npm audit` 0 vulns. **Deno type-check** of all functions passes.
-**NOT run:** `supabase start` stack (no Docker here), real GoTrue login, real Storage API, seed.sql, provision-demo.mjs, Playwright, browser/manual UI test, deployment. Run `supabase start` then the same suites against it with `TV_BASE_URL`/`TEST_DATABASE_URL` (token minting in api tests is harness-specific — adapt to sign-in tokens).
-Commands: `npm run test:backend:local`, `npm run test:mutation`, `npm --prefix frontend test`.
+# Testing: commands, coverage, evidence, limits
+
+## Commands in this repository
+
+| Command | What it runs | Requirements / notes |
+|---|---|---|
+| `npm --prefix frontend run build` | Frontend TypeScript check and Vite production build. | Node/npm. Does not check Deno functions, SQL behavior, or deployment. Current workspace run on 2026-10-19 passed; Vite emitted >500 KiB chunk warning. |
+| `npm --prefix frontend test` | Vitest frontend suite. | Current workspace run on 2026-10-19: 4 files, 18 passed, 1 todo. Includes auth guards, API client, permission UI, upload and recipient selection. |
+| `npm run typecheck:functions` | Deno check of all Edge Function entrypoints and shared TS. | Deno 2.9.7 was installed and direct equivalent `deno check --config supabase/functions/deno.json ...` passed on 2026-10-19. The npm script itself expects `deno` on PATH. |
+| `npm run test:backend:local` | DB + HTTP integration suites against a disposable PostgreSQL/PostgREST/Deno test harness. | Bash, PostgreSQL 16 server tooling, PostgREST, Deno and helper commands; environment variables `TV_POSTGREST_BIN` and `TV_DENO` can specify binaries. Script resets its disposable test database. Not the hosted project. |
+| `npm run test:db` | Vitest DB suite (`supabase/tests/db`). | Requires the harness/test database to be running. |
+| `npm run test:api` | Vitest API HTTP suite (`supabase/tests/api`). | Requires harness/PostgREST services and test DB. API harness uses HS256 test-token verification and in-memory Storage, not real Auth/Storage. |
+| `npm run test:mutation` | Rebuilds disposable backend DB and runs authorization mutation against negative tests. | A healthy baseline passes, then the deliberately broken authorization mutant is expected to cause failures. Never run against production data. |
+| `npm run test:functions` | Placeholder message only. | There are no separate Deno unit tests; use `npm run typecheck:functions` and API harness tests. |
+
+## Test organization and examples
+
+- `supabase/tests/db/rls.test.ts`: per-table RLS, anonymous denial, guessed/cross-user IDs, column grants, client write denial, profile/role escalation, audit visibility, safe search, storage-policy denial and svc privilege enumeration.
+- `supabase/tests/db/svc.test.ts`: upload authorization, current/historical download, read/edit behavior, grants and revocation, metadata/file edits, delete, role changes, audit queries, fail-closed service operations.
+- `supabase/tests/db/audit.test.ts`: append-only triggers, hash chain, sequence/link correctness, tampering, known recomputed-chain limitation, concurrency, lock/revocation timing.
+- `supabase/tests/api/security.test.ts`: function authentication, CORS preflight, upload-time sharing/global visibility, recipient lookup, preview/download, edit/history, revoke, direct PostgREST bypass, audit/admin, malformed and malicious uploads.
+- `frontend/src/tests`: `apiClient.test.ts`, `authGuard.test.tsx`, `permissions.test.tsx`, `upload.test.tsx`.
+
+## Evidence and caveats
+
+- Latest recorded frontend build/test result in this workspace on 2026-10-19: build passed; 18 tests passed and 1 existing todo. This is a local frontend test, not a hosted integration result.
+- Deno type-check passed on 2026-10-19 using the configured function project.
+- Historical repository text reports 156 DB and 22 API tests plus a passing mutation baseline for an earlier snapshot. These counts are **not a fresh run after migrations 0700–0900**. Migration 0900 was pending in the last linked hosted migration list, and no full backend run after that change is recorded.
+- SQL harness shim does not emulate GoTrue or the actual Supabase Storage API. It cannot prove remote gateway JWT, real Storage byte access, hosted CORS secrets, or browser end-to-end behavior.
+- No Playwright suite exists. Real sign-in, Storage API direct-denial, hosted upload/preview/download, actual Vercel deployment, and backup retention require manual/integration verification.
+
+Run the exact command and record its complete outcome before changing this section. Never convert a historical count into a claim that the latest code passed.
