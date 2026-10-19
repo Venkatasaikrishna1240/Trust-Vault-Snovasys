@@ -10,37 +10,77 @@ import { downloadDocument } from '../../services/documents'
 import { errorMessage } from '../../services/api'
 import type { VersionRow } from '../../types'
 
-export function HistoryTab({ documentId, versions, currentVersion, canDownloadOld }: {
-  documentId: string; versions: VersionRow[]; currentVersion: number; canDownloadOld: boolean
+export function HistoryTab({
+  documentId,
+  versions,
+  currentVersion,
+  canDownloadOld,
+}: {
+  documentId: string
+  versions: VersionRow[]
+  currentVersion: number
+  canDownloadOld: boolean
 }) {
   const toast = useToast()
   const [busy, setBusy] = useState<number | null>(null)
   const get = async (v: VersionRow) => {
     setBusy(v.version)
-    try { await downloadDocument(documentId, v.original_filename, v.version) } catch (e) { toast.error(errorMessage(e)) } finally { setBusy(null) }
+    try {
+      await downloadDocument(documentId, v.original_filename, v.version)
+    } catch (e) {
+      toast.error(errorMessage(e))
+    } finally {
+      setBusy(null)
+    }
   }
   const sorted = [...versions].sort((a, b) => b.version - a.version)
   return (
     <Card>
-      <CardHeader title="Version history" description="Each file replacement creates a new version." />
+      <CardHeader
+        title="Version history"
+        description="Every replacement creates an immutable historical version with preserved SHA-256 integrity."
+      />
       <Table caption="Document versions">
-        <THead><Th>Version</Th><Th>File name</Th><Th>Size</Th><Th>Uploaded</Th><Th><span className="sr-only">Actions</span></Th></THead>
+        <THead>
+          <Th>Version</Th>
+          <Th>File name</Th>
+          <Th>Size</Th>
+          <Th>Uploaded</Th>
+          <Th>
+            <span className="sr-only">Actions</span>
+          </Th>
+        </THead>
         <TBody>
-          {sorted.map((v) => (
-            <Tr key={v.version}>
-              <Td><span className="font-medium text-slate-900">v{v.version}</span> {v.version === currentVersion && <Badge tone="indigo">Current</Badge>}</Td>
-              <Td className="max-w-xs break-words">{v.original_filename}</Td>
-              <Td>{formatBytes(v.size_bytes)}</Td>
-              <Td>{formatDateTime(v.created_at)}</Td>
-              <Td className="text-right">
-                {canDownloadOld && v.version !== currentVersion && (
-                  <Button variant="secondary" size="sm" loading={busy === v.version} onClick={() => get(v)} aria-label={`Download version ${v.version}`}>
-                    <Download className="h-4 w-4" aria-hidden="true" />Download
-                  </Button>
-                )}
-              </Td>
-            </Tr>
-          ))}
+          {sorted.map((v) => {
+            const isCurrent = v.version === currentVersion
+            return (
+              <Tr key={v.version}>
+                <Td>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-slate-900">v{v.version}</span>
+                    {isCurrent && <Badge tone="indigo">Current</Badge>}
+                  </div>
+                </Td>
+                <Td className="max-w-xs break-words font-mono text-xs text-slate-700">{v.original_filename}</Td>
+                <Td className="font-mono text-xs text-slate-500">{formatBytes(v.size_bytes)}</Td>
+                <Td className="text-xs text-slate-500 font-mono">{formatDateTime(v.created_at)}</Td>
+                <Td className="text-right">
+                  {canDownloadOld && !isCurrent && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={busy === v.version}
+                      onClick={() => get(v)}
+                      aria-label={`Download version ${v.version}`}
+                    >
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Download</span>
+                    </Button>
+                  )}
+                </Td>
+              </Tr>
+            )
+          })}
         </TBody>
       </Table>
     </Card>

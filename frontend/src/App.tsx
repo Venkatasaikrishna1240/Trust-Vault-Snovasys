@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './features/auth/AuthContext'
 import { RequireAdmin, RequireAuth } from './features/auth/guards'
 import { ToastProvider } from './components/ui/Toast'
@@ -21,6 +21,8 @@ export default function App() {
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/login." element={<Navigate to="/" replace />} />
+              <Route path="/login/*" element={<Navigate to="/login" replace />} />
               <Route element={<RequireAuth />}>
                 <Route element={<AppLayout />}>
                   <Route index element={<DashboardPage />} />

@@ -8,6 +8,7 @@ export function RequireAuth() {
   const location = useLocation()
   if (loading) return <div className="grid h-full place-items-center"><Spinner label="Loading session" /></div>
   if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (location.pathname.toLowerCase().startsWith('/login')) return <Navigate to="/" replace />
   return <Outlet />
 }
 
