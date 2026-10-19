@@ -1,0 +1,31 @@
+{
+  "name": "trustvault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TrustVault — secure document sharing (Supabase + React). Root package: backend test tooling and helper scripts. The web app lives in ./frontend.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "db:reset": "bash supabase/tests/harness/pg-local.sh reset",
+    "db:stop": "bash supabase/tests/harness/pg-local.sh stop",
+    "test:db": "vitest run --config supabase/tests/vitest.config.ts supabase/tests/db",
+    "test:api": "vitest run --config supabase/tests/vitest.config.ts supabase/tests/api",
+    "test:functions": "echo \"no Deno unit tests yet; see docs/testing.md\"",
+    "test:backend:local": "bash scripts/run-local-backend-tests.sh",
+    "test:mutation": "bash scripts/mutation-test.sh",
+    "test:frontend": "npm --prefix frontend test",
+    "typecheck:functions": "deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts",
+    "provision:demo": "node scripts/provision-demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1",
+    "supabase": "^2.121.0",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.5"
+  }
+}

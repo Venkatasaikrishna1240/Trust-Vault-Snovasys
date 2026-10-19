@@ -1,0 +1,1 @@
+# Local development → README "Run locally". Docker-free DB/API tests: `npm run test:backend:local` (needs PostgreSQL 16 server binaries, a postgrest binary via TV_POSTGREST_BIN, deno via TV_DENO). Troubleshooting: Postgres won't run as root (harness uses the `postgres` OS user); Deno inside a folder with package.json needs `--node-modules-dir=none` (script does this).

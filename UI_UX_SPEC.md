@@ -1,0 +1,2 @@
+# UI/UX spec (as built)
+Enterprise look: slate neutrals, single indigo accent, consistent radii, lucide icons, responsive sidebar→top bar, skeletons, empty states, toasts, confirm dialogs, pagination. Pages: /login, / dashboard, /documents (search+filters), /documents/new, /documents/:id (Overview/Sharing/History), /admin/audit, /admin/users, access-denied/not-found. UI hides controls by role for UX only; the server enforces everything. Not browser-tested by the author.

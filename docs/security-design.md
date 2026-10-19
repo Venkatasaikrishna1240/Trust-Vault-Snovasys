@@ -1,0 +1,7 @@
+# Security design
+Layers: RLS (reads) · column privileges (no `storage_key`, only `display_name` updatable) · svc_* service-only functions · restrictive Storage policy · Edge Function validation · audit hash chain.
+**Revocation:** committed revoke ⇒ every NEW request is denied (no cached decisions, no signed URLs). A request already authorised before the revoke committed (READ COMMITTED) may finish delivering bytes; copies already downloaded cannot be recalled. Writes re-check access after taking the document row lock.
+**Audit:** written in the same transaction as the operation; denials are returned not raised (a raise would roll back the denial's own audit row). If the audit write fails the function raises ⇒ 5xx, no bytes (fail closed). Hash chain = tamper-EVIDENT only: a DB owner can rewrite and recompute (test documents it) — copy `head.hash` from the admin dashboard to independent storage periodically. Global audit serialisation limits write throughput; `lock_timeout=5s` prevents hangs.
+**Privileged code:** only Edge Functions hold the service key; every svc_* authorises explicitly before acting. No other bypass of RLS exists.
+**Uploads:** PDF/PNG/JPEG only, bytes inspected (signature + terminator), extension and declared MIME must agree, size cap, SHA-256 stored and re-verified on download. Out of scope: antivirus, content sanitisation, polyglot detection.
+**Known gaps:** see THREATS.md and docs/PROJECT_STATUS.md.

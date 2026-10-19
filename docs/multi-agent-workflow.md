@@ -1,0 +1,2 @@
+# Multi-agent workflow
+Split by ownership: DB agent (supabase/migrations + tests/db), Functions agent (supabase/functions + tests/api), Frontend agent (frontend/), Docs agent (*.md). Agree contracts first (API.md, migration signatures). One agent per file at a time; rebase before merge. Security-sensitive diffs (migrations, `_shared/*`, policies) need human review. Agents never remove RLS/Storage/authz checks to make a feature work; every security change ships with a test; read AGENTS.md first; log real prompts in PROMPTS.md.

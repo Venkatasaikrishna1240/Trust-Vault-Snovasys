@@ -1,0 +1,55 @@
+# Supabase CLI config for LOCAL development (`supabase start`). Hosted settings are in the dashboard (docs/deployment.md).
+project_id = "trustvault"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]   # NOTE: schema "app" is deliberately NOT exposed
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"]
+enable_signup = true
+minimum_password_length = 12
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false   # local only; ENABLE e-mail confirmation in production
+
+[edge_runtime]
+enabled = true
+
+# verify_jwt = true: the platform rejects requests without a valid JWT BEFORE our code runs;
+# every function additionally verifies the user with auth.getUser().
+[functions.document-upload]
+verify_jwt = true
+[functions.document-download]
+verify_jwt = true
+[functions.document-preview]
+verify_jwt = true
+[functions.document-get]
+verify_jwt = true
+[functions.document-edit]
+verify_jwt = true
+[functions.document-delete]
+verify_jwt = true
+[functions.document-share]
+verify_jwt = true
+[functions.admin-audit-query]
+verify_jwt = true
+[functions.admin-set-role]
+verify_jwt = true
