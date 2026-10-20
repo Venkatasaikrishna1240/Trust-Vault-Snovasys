@@ -28,6 +28,8 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
       const partialUsername = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.split('@')[0].slice(0, 8), rid()]);
       const displayName = await svc('svc_search_share_recipients', [c.owner.id, `stranger ${c.stranger.id.slice(0, 4)}`, rid()]);
       const exactEmail = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.toUpperCase(), rid()]);
+      const wildcard = await svc('svc_search_share_recipients', [c.owner.id, '%%%', rid()]);
+      const sqlLikeInput = await svc('svc_search_share_recipients', [c.owner.id, "' OR '1'='1 --", rid()]);
 
       expect(partialUsername).toMatchObject({
         ok: true,
@@ -41,6 +43,8 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
         ok: true,
         recipients: [{ id: c.stranger.id, email: c.stranger.email }],
       });
+      expect(wildcard).toEqual({ ok: true, recipients: [] });
+      expect(sqlLikeInput).toEqual({ ok: true, recipients: [] });
 
       const self = await svc('svc_search_share_recipients', [c.owner.id, c.owner.email, rid()]);
       expect(self).toEqual({ ok: true, recipients: [] });
@@ -137,6 +141,11 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
     });
 
     it('successful AND denied attempts are audited with the right actor and outcome', async () => {
+      const allowed = await download(c.owner, d);
+      expect(allowed.ok).toBe(true);
+      expect(await svc('svc_record_document_delivery', [
+        c.owner.id, d.id, 'document.download', allowed.version, rid(),
+      ])).toEqual({ ok: true });
       const rows = await auditFor(d.id);
       const downloads = rows.filter((r) => r.action === 'document.download');
       expect(downloads.some((r) => r.actor_id === c.owner.id && r.outcome === 'success')).toBe(true);
@@ -144,6 +153,37 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
       expect(downloads.some((r) => r.actor_id === c.stranger.id && r.outcome === 'denied')).toBe(true);
       expect(downloads.some((r) => r.actor_id === c.viewer.id && r.outcome === 'denied')).toBe(true); // after revoke
       expect(downloads.some((r) => r.actor_id === c.admin.id && r.outcome === 'denied')).toBe(true);
+    });
+
+    it('does not record preview/download success before verified bytes and rechecks access', async () => {
+      const previewDoc = await createDoc(c.owner.id, 'Audited preview');
+      await grant(c.owner, previewDoc, c.viewer, 'read');
+      const preview = await svc('svc_authorize_preview', [c.viewer.id, previewDoc.id, rid()]);
+      expect(preview.ok).toBe(true);
+      expect(await pool.query(
+        `select count(*)::int as count from public.audit_events
+         where document_id = $1 and actor_id = $2 and action = 'document.preview' and outcome = 'success'`,
+        [previewDoc.id, c.viewer.id],
+      ).then((r) => r.rows[0].count)).toBe(0);
+
+      expect(await svc('svc_record_document_delivery', [
+        c.viewer.id, previewDoc.id, 'document.preview', preview.version, rid(),
+      ])).toEqual({ ok: true });
+      const successful = (await auditFor(previewDoc.id)).find(
+        (r) => r.actor_id === c.viewer.id && r.action === 'document.preview' && r.outcome === 'success',
+      );
+      expect(successful?.details).toMatchObject({
+        level: 'read', version: preview.version, document_name: 'file.pdf',
+        owner_id: c.owner.id, response_prepared: true,
+      });
+
+      await revoke(c.owner, previewDoc, c.viewer);
+      expect(await svc('svc_record_document_delivery', [
+        c.viewer.id, previewDoc.id, 'document.preview', preview.version, rid(),
+      ])).toEqual({ ok: false, code: 'not_found' });
+      expect((await auditFor(previewDoc.id)).some(
+        (r) => r.actor_id === c.viewer.id && r.action === 'document.preview' && r.outcome === 'denied',
+      )).toBe(true);
     });
 
     it('old versions can be downloaded by the owner and edit-grantees, but not read-grantees', async () => {
@@ -422,7 +462,11 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
       const r = await svc('svc_admin_query_audit', [c.admin.id, c.stranger.id, d.id, 'document.download', 'denied', null, null, 25, 0, rid()]);
       expect(r.ok).toBe(true);
       expect(r.total).toBe(1);
-      expect(r.events[0]).toMatchObject({ actor_id: c.stranger.id, document_id: d.id, action: 'document.download', outcome: 'denied' });
+      expect(r.events[0]).toMatchObject({
+        actor_id: c.stranger.id, actor_email: c.stranger.email,
+        document_id: d.id, document_name: 'file.pdf',
+        owner_email: c.owner.email, action: 'document.download', outcome: 'denied',
+      });
       expect(r.head.seq).toBeGreaterThan(0);
       expect(r.head.hash).toMatch(/^[0-9a-f]{64}$/);
       expect(r.events[0].event_hash).toMatch(/^[0-9a-f]{64}$/);
@@ -437,13 +481,32 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
       expect(r.rows).toEqual([{ outcome: 'success' }]);
     });
 
-    it('admins do not get document access through the audit query (no titles, no keys)', async () => {
+    it('admins get audit document names but never storage keys or document contents', async () => {
       const d = await createDoc(c.owner.id, 'TOP-SECRET-TITLE-XYZ');
       await download(c.owner, d);
       const r = await svc('svc_admin_query_audit', [c.admin.id, null, d.id, null, null, null, null, 25, 0, rid()]);
       const blob = JSON.stringify(r);
-      expect(blob).not.toContain('TOP-SECRET-TITLE-XYZ');
+      expect(blob).toContain('TOP-SECRET-TITLE-XYZ');
       expect(blob).not.toContain(d.storageKey);
+    });
+
+    it('uses the document filename that was current when each audit event occurred', async () => {
+      const d = await createDoc(c.owner.id, 'Filename history');
+      await grant(c.owner, d, c.viewer, 'read');
+      const key = `${c.owner.id}/${d.id}/${randomUUID()}`;
+      expect(await svc('svc_commit_replace', [
+        c.owner.id, d.id, key, 'renamed.pdf', 'application/pdf', 99, sha256Hex('v2'), rid(),
+      ])).toMatchObject({ ok: true });
+
+      const grantEvents = await svc('svc_admin_query_audit', [
+        c.admin.id, null, d.id, 'permission.grant', 'success', null, null, 25, 0, rid(),
+      ]);
+      expect(grantEvents.events[0].document_name).toBe('file.pdf');
+
+      const replaceEvents = await svc('svc_admin_query_audit', [
+        c.admin.id, null, d.id, 'document.replace', 'success', null, null, 25, 0, rid(),
+      ]);
+      expect(replaceEvents.events[0].document_name).toBe('renamed.pdf');
     });
   });
 

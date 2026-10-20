@@ -9,18 +9,20 @@ TrustVault is a secure document-sharing application: signed-in users upload PDF/
 - Recipient suggestions for multi-recipient upload sharing search display names and the username part of email addresses after three characters; matches show the email before selection. Grant changes and individual or batch revoke are supported.
 - Optional visibility to all signed-in accounts (not anonymous/public-link access).
 - Readers can view metadata and get an audited inline preview; owners/editors can download current and historical versions. Editors can edit/replace files but cannot share or delete. Owners control sharing and deletion.
-- Private Storage bucket, byte-level upload validation, server-generated object keys, SHA-256 checking on preview/download, and append-only hash-linked audit events.
+- Private Storage bucket, byte-level upload validation, server-generated object keys, SHA-256 checking on preview/download, and append-only hash-linked audit events. Admin audit rows include a human-readable activity, filename, actor/owner/recipient labels, permission, outcome, timestamp and request ID. Preview/download success is logged only after bytes are fetched and verified; this confirms the server prepared a response, not that a user's browser saved it.
 - Admin user-role management (`owner`/`viewer`) and read-only audit query/chain verification. Admin status alone does not provide document access.
 
 ## Stack and architecture
 
 - Frontend: React 18, Vite, TypeScript, Tailwind CSS, Supabase JS.
 - Backend: Supabase Auth, PostgreSQL, RLS, private Storage, Deno TypeScript Edge Functions; Supabase CLI for migrations/deployments; Vercel configuration in `frontend/`.
-- Flow: browser Auth token → Edge Function verifies token with `auth.getUser()` → service-role-only `svc_*` database operation authorizes and audits → only after success the function accesses private Storage.
+- Flow: browser Auth token → Edge Function verifies token with `auth.getUser()` → service-role-only `svc_*` database operation authorizes → Edge Function accesses private Storage and verifies bytes → a second service-role operation rechecks access and records a successful response before returning bytes.
 - Main directories: `frontend/src/{pages,features,services}`; `supabase/migrations`; `supabase/functions`; `supabase/tests`; `scripts`; `docs`.
-- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup, 20261020000200 name/username recipient suggestions.
+- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup, 20261020000200 name/username recipient suggestions, 20261020000300 human-readable audit and post-verification delivery events.
 
 See [architecture](docs/architecture.md), [permission model](docs/permission-model.md), and [security design](docs/security-design.md).
+
+The STRIDE threat analysis and known limitations are in [THREATS.md](THREATS.md). Seven project security requirements are mapped to code, tests, evidence, status and remaining gaps in [the requirements matrix](docs/requirements-evidence.md). Actual command results and blocked checks are recorded in [security test evidence](evidence/security-test-results.md); local frontend checks do not prove the live Supabase policies or Storage API.
 
 ## Requirements and local setup
 

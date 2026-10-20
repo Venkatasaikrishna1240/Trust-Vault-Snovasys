@@ -1,5 +1,5 @@
-// All Edge Function handlers. Each: authenticate (in wrap) -> validate -> svc_* decision
-// (authorise + audit in one transaction) -> only then touch storage.
+// All Edge Function handlers authenticate and validate before service RPCs.
+// Denials are audited by SQL; delivery success is recorded after bytes verify.
 import {
   apiError, assertOk, category, contentDisposition, Deps, jsonBody, json, readLimited, sha256Hex,
   str, uuid, validateUpload, wrap, type Ctx,
@@ -7,8 +7,11 @@ import {
 
 const rpc = (c: Ctx, fn: string, args: Record<string, unknown>) =>
   c.deps.db.call(fn, { ...args, p_request: c.requestId });
-const recordEvent = (c: Ctx, doc: string | null, action: string, outcome: string, details: Record<string, unknown>) =>
-  rpc(c, 'svc_record_event', { p_actor: c.user.id, p_document: doc, p_action: action, p_outcome: outcome, p_details: details }).catch(() => {});
+const recordEvent = async (c: Ctx, doc: string | null, action: string, outcome: string, details: Record<string, unknown>) => {
+  assertOk(await rpc(c, 'svc_record_event', {
+    p_actor: c.user.id, p_document: doc, p_action: action, p_outcome: outcome, p_details: details,
+  }));
+};
 
 /** Parse multipart after enforcing the size cap while reading. */
 async function readMultipart(c: Ctx): Promise<FormData> {
@@ -69,7 +72,7 @@ export const downloadHandler = (deps: Deps) => wrap(deps, ['GET'], async (c) => 
   const version = vRaw === null ? null : Number(vRaw);
   if (version !== null && (!Number.isInteger(version) || version < 1)) throw apiError('invalid_request', 'version must be a positive integer.');
 
-  // 1. decision + audit (throws => no bytes). 2. only then storage.
+  // Authorize before Storage; successful delivery is audited after verification.
   const r = assertOk(await rpc(c, 'svc_authorize_download', { p_actor: c.user.id, p_document: id, p_version: version }));
   const bytes = await c.deps.store.get(r.storage_key).catch(() => null);
   if (!bytes) { await recordEvent(c, id, 'document.download', 'error', { stage: 'storage' }); throw apiError('unavailable'); }
@@ -77,6 +80,9 @@ export const downloadHandler = (deps: Deps) => wrap(deps, ['GET'], async (c) => 
     await recordEvent(c, id, 'document.download', 'error', { stage: 'integrity' });
     throw apiError('internal', 'Integrity check failed; file not delivered.');
   }
+  assertOk(await rpc(c, 'svc_record_document_delivery', {
+    p_actor: c.user.id, p_document: id, p_action: 'document.download', p_version: r.version,
+  }));
   const h = new Headers({
     'Content-Type': r.mime_type, // from DB (validated at upload), not from the client
     'Content-Disposition': contentDisposition(r.original_filename),
@@ -99,6 +105,9 @@ export const previewHandler = (deps: Deps) => wrap(deps, ['GET'], async (c) => {
     await recordEvent(c, id, 'document.preview', 'error', { stage: 'integrity' });
     throw apiError('internal', 'Integrity check failed; file not delivered.');
   }
+  assertOk(await rpc(c, 'svc_record_document_delivery', {
+    p_actor: c.user.id, p_document: id, p_action: 'document.preview', p_version: r.version,
+  }));
   const disposition = contentDisposition(r.original_filename).replace(/^attachment;/, 'inline;');
   const h = new Headers({
     'Content-Type': r.mime_type,

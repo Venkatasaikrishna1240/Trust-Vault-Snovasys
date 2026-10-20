@@ -45,6 +45,13 @@ describe('RLS and privileges (direct database / Data API access)', () => {
         asAnon((s) => s.query(`select public.svc_authorize_download($1,$2,null,$3)`, [c.owner.id, ownerDoc.id, randomUUID()])),
       );
       expect(msg).toMatch(/permission denied/i);
+      const deliveryMsg = await expectDenied(
+        asUser(c.owner.id, (s) => s.query(
+          `select public.svc_record_document_delivery($1,$2,'document.download',1,$3)`,
+          [c.owner.id, ownerDoc.id, randomUUID()],
+        )),
+      );
+      expect(deliveryMsg).toMatch(/permission denied/i);
     });
   });
 

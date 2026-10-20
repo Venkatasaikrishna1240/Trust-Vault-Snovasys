@@ -42,6 +42,7 @@ const makeDoc = async (owner: U, title = 'Confidential ' + randomUUID().slice(0,
   return (await r.json()).data.document as { id: string; title: string };
 };
 const dl = (u: U | null, id: string) => fn('document-download', u, {}, `?id=${id}`);
+const preview = (u: U | null, id: string) => fn('document-preview', u, {}, `?id=${id}`);
 const share = (owner: U, id: string, grantee: U, permission: 'read' | 'edit') =>
   post('document-share', owner, { action: 'grant', document_id: id, grantee_email: grantee.email, permission });
 
@@ -138,6 +139,12 @@ describe('cross-user access through the Edge Functions', () => {
     expect(exactEmail.status).toBe(200);
     const exactMatch = (await exactEmail.json()).data.recipients as Array<{ id: string; email: string }>;
     expect(exactMatch.some((person) => person.id === stranger.id && person.email === stranger.email)).toBe(true);
+
+    for (const query of ['%%%', "' OR '1'='1 --"]) {
+      const probe = await post('document-share', owner, { action: 'search_recipients', query });
+      expect(probe.status).toBe(200);
+      expect((await probe.json()).data.recipients).toEqual([]);
+    }
 
     expect(emailMatch.some((person) => person.id === owner.id)).toBe(false);
     expect(nameMatch.some((person) => person.id === owner.id)).toBe(false);
@@ -323,19 +330,60 @@ describe('direct Data API (PostgREST) access — bypassing the UI', () => {
 describe('audit trail over HTTP', () => {
   it('successful and denied attempts are recorded with the true actor; admin API is read-only and admin-only', async () => {
     const doc = await makeDoc(owner);
-    await dl(owner, doc.id); await dl(stranger, doc.id);
+    expect((await dl(owner, doc.id)).status).toBe(200);
+    expect((await preview(viewer, doc.id)).status).toBe(404);
+    await share(owner, doc.id, viewer, 'read');
+    expect((await preview(viewer, doc.id)).status).toBe(200);
+    expect((await dl(viewer, doc.id)).status).toBe(404);
+    const revoked = await post('document-share', owner, {
+      action: 'revoke', document_id: doc.id, grantee_id: viewer.id,
+    });
+    expect(revoked.status).toBe(200);
+    expect((await preview(viewer, doc.id)).status).toBe(404);
+    await dl(stranger, doc.id);
     expect((await post('admin-audit-query', owner, {})).status).toBe(403);
     expect((await post('admin-audit-query', stranger, {})).status).toBe(403);
     const r = await post('admin-audit-query', admin, { filters: { document_id: doc.id }, verify_chain: true });
     expect(r.status).toBe(200);
     const { events, chain, head } = (await r.json()).data;
     const has = (a: string, o: string, actor: string) => events.some((e: any) => e.action === a && e.outcome === o && e.actor_id === actor);
+    const downloaded = events.find((e: any) => e.action === 'document.download' && e.outcome === 'success' && e.actor_id === owner.id);
+    const previewed = events.find((e: any) => e.action === 'document.preview' && e.outcome === 'success' && e.actor_id === viewer.id);
+    const grantEvent = events.find((e: any) => e.action === 'permission.grant' && e.outcome === 'success');
+    const revokeEvent = events.find((e: any) => e.action === 'permission.revoke' && e.outcome === 'success');
     expect(has('document.upload', 'success', owner.id)).toBe(true);
-    expect(has('document.download', 'success', owner.id)).toBe(true);
+    expect(downloaded).toMatchObject({
+      document_name: 'salary.pdf', owner_email: owner.email,
+      details: { response_prepared: true, document_name: 'salary.pdf' },
+    });
+    expect(events.filter((e: any) => e.action === 'document.download' && e.outcome === 'success' && e.actor_id === owner.id)).toHaveLength(1);
+    expect(previewed).toMatchObject({
+      actor_email: viewer.email, affected_email: viewer.email,
+      document_name: 'salary.pdf', owner_email: owner.email,
+      details: { response_prepared: true, level: 'read' },
+    });
+    expect(events.filter((e: any) => e.action === 'document.preview' && e.outcome === 'success' && e.actor_id === viewer.id)).toHaveLength(1);
+    expect(grantEvent).toMatchObject({ affected_email: viewer.email, permission_type: 'read' });
+    expect(revokeEvent).toMatchObject({ affected_email: viewer.email, permission_type: 'read' });
     expect(has('document.download', 'denied', stranger.id)).toBe(true);
+    expect(has('document.preview', 'denied', viewer.id)).toBe(true);
     expect(chain.valid).toBe(true);
     expect(head.hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(events)).not.toContain('%PDF');
+  });
+
+  it('does not record preview or download success when integrity verification fails', async () => {
+    const doc = await makeDoc(owner);
+    await db.query(`update public.documents set sha256=$2 where id=$1`, [doc.id, '0'.repeat(64)]);
+    expect((await dl(owner, doc.id)).status).toBe(500);
+    expect((await preview(owner, doc.id)).status).toBe(500);
+    const result = await post('admin-audit-query', admin, { filters: { document_id: doc.id } });
+    expect(result.status).toBe(200);
+    const { events } = (await result.json()).data;
+    for (const action of ['document.download', 'document.preview']) {
+      expect(events.some((e: any) => e.action === action && e.outcome === 'error')).toBe(true);
+      expect(events.some((e: any) => e.action === action && e.outcome === 'success')).toBe(false);
+    }
   });
 
   it('an admin cannot read content; role changes work only on non-admin others', async () => {

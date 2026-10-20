@@ -35,3 +35,13 @@ The medium issue is fixed in the current working tree. The low-severity recipien
 - No antivirus/content disarm, mandatory MFA, independent audit-head storage, backup-retention verification, or browser E2E suite is established by this repository.
 
 No database, hosted project, production data, or deployment was changed during this review.
+
+## Seven-requirement review update — 2026-10-20
+
+The repository was checked against the seven required areas in `docs/requirements-evidence.md`. Static review confirmed existing controls for verified Edge Function identity, parameterized Supabase RPC calls, escaped search patterns, upload validation, document authorization, owner-controlled grants, private Storage and audit integrity. No additional confirmed SQL injection, IDOR, or privilege-escalation defect was identified in this pass. Wildcard and SQL-like recipient-query probes were added to the DB/API regression tests; they have not run because local PostgreSQL is unavailable. The local Supabase CLI also could not start or inspect its stack because Docker/Podman is missing. Current frontend tests/build and Edge Function type-check results are in `evidence/security-test-results.md`. Requirement status stays PARTIAL wherever DB/API/live service verification is required.
+
+## Audit activity update — 2026-10-20
+
+The audit path review found that preview/download success rows were written by the authorization RPC before the Edge Function fetched bytes or checked their digest. Storage or integrity failure could therefore leave a success-shaped event for an operation that never returned content. The new local migration `20261020000300_audit_activity_details.sql` moves successful events to a service-role-only operation called after byte retrieval and verification; that operation rechecks current permission before writing. Audit write failures now surface and prevent the response from returning bytes. The admin query resolves names/emails and document filenames from trusted database records. Legacy success rows cannot prove delivery and are labelled accordingly in the UI.
+
+Frontend tests (7 files, 26 passed, 1 todo), frontend build/type-check, and Edge Function type-check passed. DB tests (160) and API tests (26) were attempted but all skipped at setup because PostgreSQL refused `127.0.0.1:54329`; the migration and live UI have not been tested or deployed. Thus the implementation is not yet runtime-verified at the database boundary. See `evidence/security-test-results.md`.
