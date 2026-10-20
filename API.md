@@ -37,9 +37,15 @@ Base: `${SUPABASE_URL}/rest/v1/`; browser sends the user's JWT and anon/publisha
 - `GET /rest/v1/document_versions?select=...`: version metadata only for callers with document read access; storage key is not selectable. Historical byte download is separately authorized by Edge Function.
 - `GET /rest/v1/document_permissions?select=...`: grantee's own grants/history or all grants on a document they own.
 - `GET /rest/v1/audit_events?select=...`: admins all, users their own events, owners events on their documents, per RLS. No client writes.
+- `GET /rest/v1/user_notifications?select=...`: authenticated users may read only their own notification rows. RLS binds the recipient to `auth.uid()`; client writes are revoked.
 - `POST /rest/v1/rpc/search_documents`: authenticated SECURITY INVOKER search; filters available by query/category/owner/date/scope/limit/offset. Results are restricted to current access by RLS/helper.
 - `POST /rest/v1/rpc/dashboard_stats`: authenticated SECURITY INVOKER counts only accessible documents.
+- `POST /rest/v1/rpc/mark_notifications_read`: authenticated user-bound function marks only the caller's notifications read; optional `p_ids` is capped at 100, while omitted/null marks all own notifications read.
 - Direct `svc_*` RPCs are not client endpoints; service-role execution only. `app` schema is deliberately not in exposed API schemas.
+
+## Document notifications
+
+Migration `20261020000500_user_notifications.sql` creates trusted database triggers for direct grants, newly global documents and successful document edit/replacement audit events. Each row snapshots the document title and actor display name and is addressable only by its recipient. Realtime INSERT events are published on `supabase_realtime`; the client also polls every 30 seconds for missed events. Existing notices load without historical popups. Selecting a notice marks it read and navigates to the normal document route, which still enforces current access.
 
 ## Storage access path
 

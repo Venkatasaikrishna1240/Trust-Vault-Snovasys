@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Check, Database, Lock, Shield, Sparkles } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthContext'
@@ -20,12 +20,6 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const navigate = useNavigate()
-  const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from
-  const target =
-    from && from.startsWith('/') && !from.startsWith('//') && !from.toLowerCase().startsWith('/login')
-      ? from
-      : '/'
 
   const {
     register,
@@ -37,7 +31,7 @@ export default function LoginPage() {
     defaultValues: { displayName: '', email: '', password: '' },
   })
 
-  if (session) return <Navigate to={target} replace />
+  if (session) return <Navigate to="/" replace />
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
@@ -50,7 +44,7 @@ export default function LoginPage() {
     try {
       if (mode === 'signin') {
         await signIn(values.email.trim(), values.password)
-        navigate(target, { replace: true })
+        navigate('/', { replace: true })
       } else {
         const r = await signUp(values.email.trim(), values.password, values.displayName.trim())
         if (r.needsConfirmation) {
