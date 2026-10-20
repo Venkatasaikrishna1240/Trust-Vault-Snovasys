@@ -38,3 +38,4 @@ API authorization uses an explicit bearer header rather than ambient cookies, so
 
 ## Abuse controls and remaining risks
 
+Recipient lookup is available only through the verified Edge Function and service-role database operation. It searches case-insensitive partial display names and email usernames (the part before `@`), requires at least three characters, excludes the caller, returns at most 20 matches, and is rate-limited and audited. The audit records query length and result count, not the query itself. Because suggestions reveal matching account emails to signed-in users, this supports sharing but still permits limited account discovery; do not treat the rate limit as eliminating that privacy risk. Migration `20261020000200_recipient_name_and_username_search.sql` restores this UX after the temporary exact-email-only restriction.

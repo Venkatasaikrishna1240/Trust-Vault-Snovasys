@@ -1,36 +1,34 @@
 # Project status and verification ledger
 
-Last reviewed: **2026-10-19**. Source review is not a production security certification. Status below is based on actual commands/results available in this workspace and linked Supabase CLI output.
+Last reviewed: **2026-10-20**. This is a local source and test report, not a production security certification. Fresh command results are in `evidence/security-test-results.md`.
 
 ## Implemented in source
 
-- React/Vite/TypeScript app with authentication, dashboard, document search/details, upload, sharing/history, admin users and audit pages.
-- RLS-protected Data API reads; write/file routes through nine Edge Functions and service-role-only `svc_*` DB operations.
-- Private Storage, validation/hash checking, audited upload/replace/preview/download/delete/sharing/admin actions.
-- Migrations 0100–0900 in local source, including global signed-in visibility, upload-time recipients, and editor historical downloads (0900).
+- React/Vite/TypeScript application with Supabase Auth, document upload, search, sharing, history, and admin pages.
+- RLS-protected reads and nine Edge Functions backed by service-role-only `svc_*` operations.
+- Private Storage bucket, upload validation, document hashing, access checks, and audit events.
+- Migrations 0100–0900, including signed-in global visibility, upload-time sharing, and editor historical downloads, plus recipient lookup updates 20261020000100 and 20261020000200.
+- Migration `20261020000200_recipient_name_and_username_search.sql` restores bounded suggestions by display name/email username; neither recipient-search migration has been applied to a hosted project.
+- Demo provisioning now includes the required upload fields. Its network workflow has not been exercised in a disposable Supabase project.
 
-## Checks actually run in this workspace
+## Fresh checks run on 2026-10-20
 
-- `npm --prefix frontend run build`: passed on 2026-10-19 after editor history UI work; Vite emitted a chunk-size warning (>500 KiB).
-- `npm --prefix frontend test`: passed on 2026-10-19 after editor history UI work: 4 files, 18 tests passed, 1 todo.
-- Deno check: `deno check --config supabase/functions/deno.json supabase/functions/*/index.ts supabase/functions/_shared/*.ts` passed on 2026-10-19.
-- Hosted CLI inspection: linked project `twyfmmtzbcjwlkfwwijm`; migrations 0100–0800 recorded, 0900 not recorded/pending; nine functions reported active at inspection time. Earlier five-function localhost preflight check returned 204 for local port 5176, but it did not test authenticated actions or actual file bytes.
-- Migration 0900 and updated DB/API tests were added after the observed hosted migration list. **Do not state migration 0900 is deployed.**
+- `npm --prefix frontend run build`: passed; Vite reported a JavaScript chunk over 500 KiB.
+- `npm --prefix frontend run lint`: passed (`tsc --noEmit`).
+- `npm --prefix frontend test -- --pool=threads --maxWorkers=1`: 6 files passed, 21 tests passed, 1 existing todo after recipient-suggestion update.
+- `npm run typecheck:functions`: passed after the script was corrected to use `supabase/functions/deno.json`. Before that change, the script failed because it did not load the Deno project's dependency configuration.
+- `node --check scripts/provision-demo.mjs`: passed; this checks syntax only, not requests against Supabase.
+- Initial Git worktree was clean on `main`. Work is on local branch `security-hardening`; no commit was created.
+- A read-only static review found a transient cross-account display gap during direct A→B session replacement. The auth context now clears the old profile and gates protected content until B's profile loads; a regression test covers the transition. Recipient suggestions now match display names, email usernames, and full email addresses, returning the account email. This supports the requested picker experience but retains limited account-discovery risk. Backend tests for this migration/API change have not been run here.
 
-## Historical evidence (not rerun for current source)
+## Not run or not established
 
-Repository notes report earlier baseline results of 156 DB tests, 22 HTTP tests, and a passing mutation test; these are historical results for an earlier snapshot, not a full run after migrations 0700–0900. The test harness uses a Supabase SQL shim and in-memory storage and does not prove actual Auth/Storage API behavior. See `docs/testing.md`.
+- DB and API suites were attempted but could not connect to PostgreSQL at `127.0.0.1:54329`; their test bodies were skipped. The mutation suite remains unrun because the backend harness is unavailable.
+- The frontend test harness and static review do not exercise real Supabase Auth or the actual Storage API.
+- No real signed-in browser account-switch run, live Storage denial, hosted API test, deployment, migration, or production operation was performed. The account-switch regression test is frontend-mocked.
+- The previous hosted CLI notes (2026-10-19) reported migrations 0100–0800 and nine functions active, with 0900 pending. That information was not refreshed; do not infer current deployment state from it.
+- Historical backend pass counts in older repository documents are not fresh evidence for the current migration set.
+- One frontend test remains marked `todo`; Deno has no separate unit-test suite; Vite reports a large chunk.
+- Historical AI prompt summaries are in Git history, but original transcripts and independent proof of their reported tests are not.
 
-## Not established / outstanding
-
-- Full DB/API test suites against the latest migrations, especially 0900.
-- Hosted migration 0900 applied and verified.
-- Signed-in browser smoke test for upload/share/revoke/admin role/audit and editor historical download.
-- Real hosted Storage direct-client denial and byte round-trip.
-- Playwright E2E, backup/retention checks, deployment on Vercel, clean-clone setup validation.
-- Deno unit tests (`npm run test:functions` is only a placeholder).
-- Git history/commit links: workspace has no `.git` directory. AI prompt records cannot be tied to commits.
-- Frontend bundle splitting; Vite warns the built JS chunk exceeds 500 KiB.
-- One frontend component case is intentionally `it.todo` due to a test-runner unhandled mocked rejection issue.
-
-Before presenting a capability as live, verify the specific deployment project's migration list and function versions, then record exact test commands/results here.
+Check the target project and run the backend and live integration procedures before claiming those behaviors are verified. Do not use production data for tests.

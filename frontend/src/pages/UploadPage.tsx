@@ -269,7 +269,7 @@ export default function UploadPage() {
               <div className="space-y-3.5 border-t border-slate-200/90 pt-4 mt-2">
                 <div>
                   <label htmlFor="recipient-search" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Find recipients by name or e-mail
+                    Find recipient by name or username
                   </label>
                   <input
                     id="recipient-search"
@@ -277,11 +277,14 @@ export default function UploadPage() {
                     autoComplete="off"
                     value={recipientQuery}
                     onChange={(e) => setRecipientQuery(e.target.value)}
-                    placeholder="Type at least 3 characters to search…"
+                    placeholder="Type a name or email username…"
                     className="block h-10 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm shadow-2xs placeholder:text-slate-400 focus:border-blue-600 focus:ring-3 focus:ring-blue-500/15 focus:outline-hidden"
                   />
                   <p className="mt-1.5 text-2xs text-slate-500">
                     {selectedRecipients.length} selected · changes apply when you upload.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Type at least 3 characters. Results show the account email for confirmation.
                   </p>
                 </div>
 

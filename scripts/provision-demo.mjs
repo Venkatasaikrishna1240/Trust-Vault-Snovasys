@@ -35,7 +35,7 @@ for (const [key, email] of users) {
 const pdf = (t) => new TextEncoder().encode(`%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n% ${t} (fictional)\ntrailer<<>>\n%%EOF\n`);
 const fn = (name, who, init = {}) => fetch(`${URL_}/functions/v1/${name}`, { ...init, headers: { apikey: ANON, Authorization: `Bearer ${token[who]}`, ...(init.headers ?? {}) } });
 async function upload(who, title, category) {
-  const f = new FormData(); f.set('file', new File([pdf(title)], `${category}.pdf`, { type: 'application/pdf' })); f.set('title', title); f.set('category', category);
+  const f = new FormData(); f.set('file', new File([pdf(title)], `${category}.pdf`, { type: 'application/pdf' })); f.set('title', title); f.set('category', category); f.set('is_global', 'false'); f.set('share_permission', 'read');
   const r = await fn('document-upload', who, { method: 'POST', body: f }); const b = await j(r);
   if (!r.ok) throw new Error(`upload failed: ${JSON.stringify(b)}`); return b.data.document.id;
 }

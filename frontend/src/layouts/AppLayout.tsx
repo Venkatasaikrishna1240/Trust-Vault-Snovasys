@@ -157,7 +157,7 @@ export default function AppLayout() {
   )
 
   return (
-    <div className="flex min-h-screen bg-slate-900 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-slate-900 text-slate-900 lg:flex-row">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2.5 focus:font-semibold focus:shadow-xl focus:ring-2 focus:ring-blue-600"

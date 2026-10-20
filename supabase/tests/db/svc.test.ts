@@ -23,6 +23,31 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
   const rid = () => randomUUID();
 
   // -------------------------------------------------------------------------
+  describe('recipient lookup', () => {
+    it('matches display names and email usernames, case-insensitively', async () => {
+      const partialUsername = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.split('@')[0].slice(0, 8), rid()]);
+      const displayName = await svc('svc_search_share_recipients', [c.owner.id, `stranger ${c.stranger.id.slice(0, 4)}`, rid()]);
+      const exactEmail = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.toUpperCase(), rid()]);
+
+      expect(partialUsername).toMatchObject({
+        ok: true,
+        recipients: [{ id: c.stranger.id, email: c.stranger.email }],
+      });
+      expect(displayName).toMatchObject({
+        ok: true,
+        recipients: [{ id: c.stranger.id, email: c.stranger.email }],
+      });
+      expect(exactEmail).toMatchObject({
+        ok: true,
+        recipients: [{ id: c.stranger.id, email: c.stranger.email }],
+      });
+
+      const self = await svc('svc_search_share_recipients', [c.owner.id, c.owner.email, rid()]);
+      expect(self).toEqual({ ok: true, recipients: [] });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   describe('upload authorisation', () => {
     it('every registered role may create documents', async () => {
       for (const u of [c.owner, c.viewer, c.admin, c.stranger]) {
