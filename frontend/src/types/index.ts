@@ -86,7 +86,16 @@ export interface AuditEvent {
   occurred_at: string
   actor_id: string | null
   actor_email?: string | null
+  actor_display_name?: string | null
   document_id: string | null
+  document_name?: string | null
+  document_owner_id?: string | null
+  owner_email?: string | null
+  owner_display_name?: string | null
+  affected_user_id?: string | null
+  affected_email?: string | null
+  affected_display_name?: string | null
+  permission_type?: string | null
   action: string
   outcome: 'success' | 'denied' | 'error'
   request_id?: string

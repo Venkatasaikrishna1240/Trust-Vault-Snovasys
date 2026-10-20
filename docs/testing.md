@@ -8,7 +8,7 @@ Fresh results from 2026-10-20 are in `evidence/security-test-results.md`; comman
 |---|---|---|
 | `npm --prefix frontend run build` | Frontend TypeScript check and Vite production build. | Passed on 2026-10-20; Vite reports one minified chunk above 500 KiB. Does not check Deno functions, SQL behavior, or deployment. |
 | `npm --prefix frontend run lint` | Frontend TypeScript check (`tsc --noEmit`). | Passed on 2026-10-20. |
-| `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | Frontend Vitest suite with one worker. | Passed on 2026-10-20: 5 files, 19 passed, 1 todo. The default worker invocation first timed out starting workers in this environment. |
+| `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | Frontend Vitest suite with one worker. | Latest audit activity run passed on 2026-10-20: 7 files, 26 passed, 1 todo. The default worker invocation first timed out starting workers in this environment. |
 | `npm run typecheck:functions` | Deno check of all Edge Function entrypoints and shared TS using the function project config. | Passed on 2026-10-20 after the script was updated to pass `supabase/functions/deno.json`. |
 | `npm run test:backend:local` | DB + HTTP integration suites against a disposable PostgreSQL/PostgREST/Deno test harness. | Bash, PostgreSQL 16 server tooling, PostgREST, Deno and helper commands; environment variables `TV_POSTGREST_BIN` and `TV_DENO` can specify binaries. Script resets its disposable test database. Not the hosted project. |
 | `npm run test:db` | Vitest DB suite (`supabase/tests/db`). | Requires the harness/test database to be running. |
@@ -19,14 +19,17 @@ Fresh results from 2026-10-20 are in `evidence/security-test-results.md`; comman
 ## Test organization and examples
 
 - `supabase/tests/db/rls.test.ts`: per-table RLS, anonymous denial, guessed/cross-user IDs, column grants, client write denial, profile/role escalation, audit visibility, safe search, storage-policy denial and svc privilege enumeration.
-- `supabase/tests/db/svc.test.ts`: upload authorization, recipient display-name/email-username suggestions, current/historical download, read/edit behavior, grants and revocation, metadata/file edits, delete, role changes, audit queries, fail-closed service operations.
+- `supabase/tests/db/svc.test.ts`: upload authorization, recipient display-name/email-username suggestions, wildcard/SQL-like query probes, current/historical download, read/edit behavior, grants and revocation, metadata/file edits, delete, role changes, audit queries, post-verification delivery recording, and fail-closed service operations.
 - `supabase/tests/db/audit.test.ts`: append-only triggers, hash chain, sequence/link correctness, tampering, known recomputed-chain limitation, concurrency, lock/revocation timing.
-- `supabase/tests/api/security.test.ts`: function authentication, CORS preflight, upload-time sharing/global visibility, recipient name/username suggestions, preview/download, edit/history, revoke, direct PostgREST bypass, audit/admin, malformed and malicious uploads.
+- `supabase/tests/api/security.test.ts`: function authentication, CORS preflight, upload-time sharing/global visibility, recipient name/username suggestions and SQL-like probes, preview/download, edit/history, revoke, direct PostgREST bypass, audit/admin, malformed and malicious uploads. The audit case covers successful/denied preview, download, grant and revoke records with resolved names and permission fields.
+- `frontend/src/tests/auditFormat.test.ts`: human-readable audit wording and the guarantee that older authorization-only records are not described as verified deliveries.
 - `frontend/src/tests`: `apiClient.test.ts`, `authContext.test.tsx`, `authGuard.test.tsx`, `permissions.test.tsx`, `upload.test.tsx`.
 
 ## Evidence and caveats
 
 - Fresh build, frontend test, and type-check results are recorded in `evidence/security-test-results.md`; sanitized command output is under `evidence/test-logs/`.
+- In the preceding seven-requirement review, `npm run test:db` and `npm run test:api` failed during setup because PostgreSQL was unavailable at `127.0.0.1:54329`; 159 DB tests and 25 API tests were skipped. The audit activity run below repeats those attempts with the newer test counts.
+- In the audit activity change, the DB/API attempts were repeated: all 160 DB tests and 26 API tests were skipped at fixture setup with the same connection refusal. A later DB rerun after adding the filename-at-event-time assertion again failed to connect; all 161 current DB tests were skipped. The new delivery, activity, and historical-filename assertions are test definitions, not runtime evidence. See `../evidence/test-logs/audit-activity-db-tests-rerun.md`.
 - Historical repository text reports 156 DB and 22 API tests plus a passing mutation baseline for an earlier snapshot. These counts are **not a fresh run after migrations 0700–0900**. Migration 0900 was pending in the last linked hosted migration list, and no full backend run after that change is recorded.
 - SQL harness shim does not emulate GoTrue or the actual Supabase Storage API. It cannot prove remote gateway JWT, real Storage byte access, hosted CORS secrets, or browser end-to-end behavior.
 - No Playwright suite exists. Real sign-in, Storage API direct-denial, hosted upload/preview/download, actual Vercel deployment, and backup retention require manual/integration verification.

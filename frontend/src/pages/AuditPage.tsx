@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Copy, ScrollText, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react'
 import { useAsync } from '../hooks/useAsync'
 import { queryAudit, type AuditFilters } from '../services/admin'
-import { listProfiles } from '../services/data'
 import { errorMessage } from '../services/api'
 import { Card, CardHeader, PageHeader } from '../components/ui/Card'
 import { Input, Select } from '../components/ui/Field'
@@ -13,7 +12,7 @@ import { EmptyState, ErrorNotice } from '../components/ui/EmptyState'
 import { Pagination } from '../components/ui/Pagination'
 import { Table, TBody, Td, Th, THead, Tr } from '../../src/components/ui/Table'
 import { useToast } from '../components/ui/Toast'
-import { actionLabel, formatDateTime } from '../lib/format'
+import { auditActivity, formatDateTime } from '../lib/format'
 import type { AuditQueryResult } from '../types'
 
 const PAGE = 20
@@ -30,7 +29,6 @@ export default function AuditPage() {
   const [page, setPage] = useState(1)
   const [verifying, setVerifying] = useState(false)
   const [chain, setChain] = useState<AuditQueryResult['chain'] | null>(null)
-  const people = useAsync(listProfiles, [])
 
   const idError = (v: string) => (v && !UUID.test(v.trim()) ? 'Enter a valid ID (UUID)' : undefined)
   const filtersValid = !idError(documentId) && !idError(actorId)
@@ -82,8 +80,6 @@ export default function AuditPage() {
   }
 
   const data = res.data
-  const personById = new Map((people.data ?? []).map((person) => [person.id, person]))
-
   return (
     <>
       <PageHeader
@@ -212,9 +208,11 @@ export default function AuditPage() {
                 <Th>#</Th>
                 <Th>Time</Th>
                 <Th>Actor</Th>
-                <Th>Other user</Th>
-                <Th>Action</Th>
-                <Th>Details</Th>
+                <Th>Activity</Th>
+                <Th>Document ID</Th>
+                <Th>Owner / sender</Th>
+                <Th>Recipient</Th>
+                <Th>Access</Th>
                 <Th>Outcome</Th>
                 <Th>Request</Th>
               </THead>
@@ -226,29 +224,23 @@ export default function AuditPage() {
                       {formatDateTime(ev.occurred_at)}
                     </Td>
                     <Td className="max-w-[12rem] truncate font-medium text-xs text-slate-800">
-                      {ev.actor_email ?? 'System'}
+                      {ev.actor_display_name ?? ev.actor_email ?? 'System'}
                     </Td>
-                    <Td className="max-w-[14rem] truncate text-xs text-slate-600">
-                      {(() => {
-                        const targetId = String(ev.details?.grantee_id ?? ev.details?.target_id ?? '')
-                        return targetId ? personById.get(targetId)?.email ?? targetId : '—'
-                      })()}
+                    <Td className="min-w-[20rem] text-xs text-slate-700">
+                      <span className="block">{auditActivity(ev)}</span>
+                      {ev.document_name && <span className="mt-1 block text-2xs text-slate-500">{ev.document_name}</span>}
                     </Td>
-                    <Td>
-                      <span className="block font-semibold text-xs text-slate-800">{actionLabel(ev.action)}</span>
-                      <span className="block font-mono text-2xs text-slate-400">{ev.action}</span>
+                    <Td className="font-mono text-2xs text-slate-500">
+                      {ev.document_id ? <span title={ev.document_id}>{ev.document_id}</span> : '—'}
+                    </Td>
+                    <Td className="max-w-[12rem] truncate text-xs text-slate-600">
+                      {ev.owner_display_name ?? ev.owner_email ?? '—'}
+                    </Td>
+                    <Td className="max-w-[12rem] truncate text-xs text-slate-600">
+                      {ev.affected_display_name ?? ev.affected_email ?? '—'}
                     </Td>
                     <Td className="text-xs text-slate-600">
-                      {String(
-                        ev.details?.permission ??
-                          (ev.details?.from && ev.details?.to
-                            ? `${ev.details.from} → ${ev.details.to}`
-                            : ev.details?.is_global !== undefined
-                            ? ev.details.is_global
-                              ? 'Visible to all signed-in users'
-                              : 'Private'
-                            : ev.details?.reason ?? '—'),
-                      )}
+                      {ev.permission_type === 'read' ? 'Read-only' : ev.permission_type === 'edit' ? 'Edit' : '—'}
                     </Td>
                     <Td>
                       <Badge tone={ev.outcome === 'success' ? 'green' : ev.outcome === 'denied' ? 'amber' : 'red'}>
@@ -257,7 +249,7 @@ export default function AuditPage() {
                     </Td>
                     <Td>
                       <code className="text-2xs font-mono text-slate-400">
-                        {ev.request_id ? ev.request_id.slice(0, 8) : '—'}
+                        {ev.request_id ?? '—'}
                       </code>
                     </Td>
                   </Tr>

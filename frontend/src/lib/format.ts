@@ -1,4 +1,4 @@
-import type { Access, Category } from '../types'
+import type { Access, AuditEvent, Category } from '../types'
 import { CATEGORIES } from '../types'
 
 export function toNumber(v: number | string | null | undefined): number {
@@ -39,6 +39,8 @@ export function accessLabel(a: Access): string {
 const ACTION_LABELS: Record<string, string> = {
   'document.upload': 'Uploaded a document',
   'document.download': 'Downloaded a document',
+  'document.preview': 'Previewed a document',
+  'document.read': 'Viewed document details',
   'document.view': 'Viewed a document',
   'document.get': 'Viewed a document',
   'document.edit': 'Edited a document',
@@ -55,6 +57,63 @@ export function actionLabel(action: string): string {
   if (ACTION_LABELS[action]) return ACTION_LABELS[action]
   const cleaned = action.replace(/[._]+/g, ' ').trim()
   return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : 'Activity'
+}
+
+export function auditActivity(event: AuditEvent): string {
+  const actor = event.actor_display_name ?? event.actor_email ?? 'Unknown user'
+  const document = event.document_name ? `'${event.document_name}'` : 'the document'
+  const owner = event.owner_display_name ?? event.owner_email
+  const ownerSuffix = owner && event.document_owner_id !== event.actor_id ? `, shared by ${owner}` : ''
+  const affected = event.affected_display_name ?? event.affected_email ?? 'the other user'
+  const permission = event.permission_type === 'edit' ? 'Edit access' : 'Read-only access'
+
+  if (event.outcome === 'denied' && event.document_id) {
+    if (event.action === 'permission.grant' || event.action === 'permission.revoke') {
+      return `${actor} attempted to change sharing for ${document} — Access denied.`
+    }
+    return `${actor} attempted to access ${document} — Access denied.`
+  }
+  if (event.action === 'permission.grant' && event.outcome === 'success') {
+    return event.details?.change === 'unchanged'
+      ? `${actor} confirmed ${affected}'s existing ${permission.toLowerCase()} to ${document}.`
+      : `${actor} shared ${document} with ${affected} — ${permission} granted.`
+  }
+  if (event.action === 'permission.revoke' && event.outcome === 'success') {
+    return `${actor} revoked ${affected}'s access to ${document}.`
+  }
+  if (event.action === 'document.preview' && event.outcome === 'success') {
+    return event.details?.response_prepared === true
+      ? `${actor} requested a preview of ${document} — verified response prepared${ownerSuffix}; browser display is not confirmed.`
+      : `${actor} was authorized to preview ${document}; delivery was not verified in this older event.`
+  }
+  if (event.action === 'document.download' && event.outcome === 'success') {
+    return event.details?.response_prepared === true
+      ? `${actor} requested a download of ${document} — verified response prepared${ownerSuffix}; receipt is not confirmed.`
+      : `${actor} was authorized to download ${document}; delivery was not verified in this older event.`
+  }
+  if (event.action === 'document.upload' && event.outcome === 'success') {
+    return `${actor} uploaded ${document}.`
+  }
+  if (event.action === 'document.edit' && event.outcome === 'success') {
+    return `${actor} edited ${document}.`
+  }
+  if (event.action === 'document.replace' && event.outcome === 'success') {
+    return `${actor} replaced the file for ${document}.`
+  }
+  if (event.action === 'document.delete' && event.outcome === 'success') {
+    return `${actor} deleted ${document}.`
+  }
+  if ((event.action === 'document.download' || event.action === 'document.preview') && event.outcome === 'error') {
+    return `${actor}'s ${event.action === 'document.preview' ? 'preview' : 'download'} of ${document} failed; no file was served.`
+  }
+  if (event.action === 'document.read' && event.outcome === 'success') {
+    return `${actor} viewed details for ${document}.`
+  }
+  if (event.action === 'document.visibility_change' && event.outcome === 'success') {
+    const visibility = event.details?.is_global === true ? 'all signed-in users' : 'private'
+    return `${actor} changed ${document} visibility to ${visibility}.`
+  }
+  return `${actor}: ${actionLabel(event.action)} (${event.outcome}).`
 }
 
 export function safeFilename(name: string): string {
