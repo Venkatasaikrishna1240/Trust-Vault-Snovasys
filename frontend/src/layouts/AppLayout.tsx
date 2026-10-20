@@ -16,6 +16,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthContext'
 import { cx } from '../components/ui/cx'
 import { Badge } from '../components/ui/Badge'
+import NotificationCenter from '../components/NotificationCenter'
 
 interface NavItem {
   to: string
@@ -174,7 +175,7 @@ export default function AppLayout() {
 
       {/* Mobile Header */}
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900 text-white lg:hidden w-full">
-        <div className="flex h-16 items-center justify-between pr-4">
+        <div className="flex h-16 items-center justify-between pr-16">
           {brand}
           <button
             type="button"
@@ -198,7 +199,7 @@ export default function AppLayout() {
       {/* Main Content Area */}
       <div className="min-w-0 flex-1 lg:pl-64 flex flex-col bg-slate-50">
         {/* Desktop Top Header Bar */}
-        <div className="hidden lg:flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-8 sticky top-0 z-20 backdrop-blur-md">
+        <div className="hidden lg:flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-8 pr-20 sticky top-0 z-20 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-800">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
@@ -234,6 +235,11 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      {profile && (
+        <div className="fixed right-4 top-3 z-[60] lg:right-8">
+          <NotificationCenter userId={profile.id} />
+        </div>
+      )}
     </div>
   )
 }

@@ -5,10 +5,13 @@ TrustVault is a secure document-sharing application: signed-in users upload PDF/
 ## Implemented features
 
 - Supabase email/password sign-in and sign-up; database profiles start as `viewer`.
+- Successful sign-in always opens the dashboard; users can then open shared documents from their normal navigation or notification list.
 - Every registered profile may upload and own documents. Account role does not grant access to another user's private documents.
 - Recipient suggestions for multi-recipient upload sharing search display names and the username part of email addresses after three characters; matches show the email before selection. Grant changes and individual or batch revoke are supported.
 - Optional visibility to all signed-in accounts (not anonymous/public-link access).
 - Readers can view metadata and get an audited inline preview; owners/editors can download current and historical versions. Editors can edit/replace files but cannot share or delete. Owners control sharing and deletion.
+- Recipients get a top-right notification bell, unread counter and matching in-app popup when a document is shared directly/globally or successfully edited/replaced. Notices are stored per recipient, and opening one still passes through the normal document authorization route.
+- Notifications require migration `20261020000500_user_notifications.sql` on each target Supabase project. Its objects and recorded version were verified on the currently linked project; user-authenticated delivery still requires live verification. The frontend identifies missing setup distinctly from transient errors.
 - Private Storage bucket, byte-level upload validation, server-generated object keys, SHA-256 checking on preview/download, and append-only hash-linked audit events. Admin audit rows include a human-readable activity, filename, actor/owner/recipient labels, permission, outcome, timestamp and request ID. Preview/download success is logged only after bytes are fetched and verified; this confirms the server prepared a response, not that a user's browser saved it.
 - Admin user-role management (`owner`/`viewer`) and read-only audit query/chain verification. Admin status alone does not provide document access.
 
@@ -18,7 +21,7 @@ TrustVault is a secure document-sharing application: signed-in users upload PDF/
 - Backend: Supabase Auth, PostgreSQL, RLS, private Storage, Deno TypeScript Edge Functions; Supabase CLI for migrations/deployments; Vercel configuration in `frontend/`.
 - Flow: browser Auth token → Edge Function verifies token with `auth.getUser()` → service-role-only `svc_*` database operation authorizes → Edge Function accesses private Storage and verifies bytes → a second service-role operation rechecks access and records a successful response before returning bytes.
 - Main directories: `frontend/src/{pages,features,services}`; `supabase/migrations`; `supabase/functions`; `supabase/tests`; `scripts`; `docs`.
-- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup, 20261020000200 name/username recipient suggestions, 20261020000300 human-readable audit and post-verification delivery events.
+- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup, 20261020000200 name/username recipient suggestions, 20261020000300 human-readable audit and post-verification delivery events, 20261020000500 recipient notifications.
 
 See [architecture](docs/architecture.md), [permission model](docs/permission-model.md), and [security design](docs/security-design.md).
 
@@ -66,7 +69,7 @@ Fresh local verification for the security-hardening work is recorded in [evidenc
 
 For a new hosted project, create the Supabase project, verify the `project_ref`, then use `npx supabase login`, `npx supabase link --project-ref <ref>`, review `npx supabase migration list --linked` and `npx supabase db push --dry-run`, and only then push. Deploy Edge Functions with `npx supabase functions deploy`; configure production `ALLOWED_ORIGINS`; configure Auth site/redirect URLs and email confirmation. Provision the first admin via a trusted operator process after the Auth profile exists. Configure Vercel root directory as `frontend` and set the two public VITE variables.
 
-**Last recorded deployment inspection (2026-10-19):** linked project ref `twyfmmtzbcjwlkfwwijm` had migrations 0100–0800 recorded and all nine functions active; migration 0900 was pending at that time. This is historical CLI evidence, not a current check. Check the verified target and its migration/function versions before making any hosted change. No hosted operation was performed for this work. Detailed steps: [deployment](docs/deployment.md).
+**Deployment verification (2026-10-20):** linked project ref `twyfmmtzbcjwlkfwwijm`; notification schema, policies, triggers, RPC and Realtime publication were verified present, and the matching migration version was recorded. A dry-run showed four other migrations pending. No migration DDL or app deployment was performed; signed-in notification delivery remains unverified. See [deployment](docs/deployment.md) before making further hosted changes.
 
 ## Known limitations and unfinished work
 
@@ -78,5 +81,6 @@ For a new hosted project, create the Supabase project, verify the `project_ref`,
 - Recipient lookup intentionally reveals limited matching registered names/emails (3-character minimum, 20 results, audited/rate-limited); exact grant calls can probe whether an email is registered.
 - No Playwright E2E suite; real hosted Auth/Storage/browser testing and Deno unit tests are not established. One frontend test is marked `todo`; the production JS bundle exceeds Vite's 500 KiB warning threshold.
 - Admin cannot promote accounts to admin through the app; initial/admin provisioning is out-of-band. Admin is not a document-access role.
-- The sign-up page's current explanatory sentence says an administrator can grant upload rights; this is stale UI copy. Current migration 0700 allows every profile-backed signed-in account to upload.
-- `scripts/provision-demo.mjs` does not send the currently required upload sharing fields, so its end-to-end provisioning flow is unfinished and is not verified.
+- Accounts with a profile can upload; account role does not control ownership rights.
+- `scripts/provision-demo.mjs` supplies the required upload sharing fields, but its end-to-end provisioning flow has not been exercised.
+- Notification persistence requires migration `20261020000500_user_notifications.sql` on each target backend. Its objects and recorded version were verified on the currently linked project, but signed-in Realtime/polling delivery still needs a live test.

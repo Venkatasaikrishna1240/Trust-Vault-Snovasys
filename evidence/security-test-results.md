@@ -4,6 +4,22 @@
 **Branch:** `security-hardening`  
 **Git baseline for this review:** clean on `security-hardening`, tracking `origin/security-hardening` at `cdf88b5`. Earlier hardening changes are already in history; this review did not create a commit.
 
+## In-app notifications — 2026-10-20
+
+| Check | Command | Result | Notes |
+|---|---|---|---|
+| Configured Supabase notification table | Read-only REST and Management API metadata queries | VERIFIED PRESENT | Initial REST call returned HTTP 404 / `PGRST205`. After authorization, metadata queries found the table, RPC, four triggers, recipient-only RLS policy, expected role privileges, and Realtime publication. The migration version was absent at first and was recorded after verification. This session did not execute the migration DDL. |
+| Notification migration ledger | `npx supabase db query --linked` | RECORDED | After verifying the remote objects, recorded version `20261020000500` in `supabase_migrations.schema_migrations` to prevent future reapplication. No other pending migration was applied. |
+| Anonymous notification read | Read-only GET `/rest/v1/user_notifications?select=id&limit=0` using configured public anon key | DENIED AS EXPECTED | Returned HTTP 401 / `42501` permission denied. Authenticated live read was not tested. |
+| Notification/login regressions | `npm --prefix frontend test -- --pool=threads --maxWorkers=1 src/tests/notificationCenter.test.tsx src/tests/loginRedirect.test.tsx src/tests/authGuard.test.tsx` | PASS | 3 files, 8 tests. |
+| Frontend type-check | `npm --prefix frontend run lint` | PASS | Rerun after the diagnostic and dashboard redirect changes. |
+| Frontend tests | `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | PASS | Latest run: 9 files; 30 passed, 1 existing todo. |
+| Frontend type-check | `npm --prefix frontend run lint` | PASS | `tsc --noEmit`. |
+| Frontend production build | `npm --prefix frontend run build` | PASS | Vite build succeeded; existing minified chunk exceeds 500 KiB. |
+| Edge Function type-check | `npm run typecheck:functions` | PASS | All Edge Function entrypoints and shared files checked. |
+| Notification DB tests | `npx vitest run supabase/tests/db/notifications.test.ts` | BLOCKED | Connection refused at `127.0.0.1:54329`; 5 tests skipped during suite setup, none executed. |
+| Signed-in live notification UI | Not run | NOT TESTED | Database objects are present, but no test user session was used to verify a newly shared document, toast, or Realtime delivery. No frontend/function deployment occurred. |
+
 ## Audit activity change — 2026-10-20
 
 | Check | Command | Result | Notes |
@@ -57,7 +73,7 @@ During test development, the first account-switch assertion queried an accessibl
 | Single-worker invocation with unsupported `--minWorkers=1` option | FAILED | Vitest rejected the option in that invocation; rerun using the supported `--pool=threads --maxWorkers=1` command above passed. The failed command output is preserved in `test-logs/frontend-tests-invalid-option.log`. |
 | Direct Supabase Auth/API/Storage authorization | NOT TESTED | No disposable Supabase environment or test credentials were used. No hosted project was accessed. |
 | Manual UI login, grant, revoke, account switch, and direct ID manipulation | NOT TESTED | No browser session/test identities were exercised during this session. Procedures are in `manual-test-cases.md`. |
-| Hosted migration/function/deployment verification | NOT TESTED | No hosted project was inspected or changed. The last recorded CLI state in older docs is from 2026-10-19 and may be stale. |
+| Hosted migration/function/deployment verification | PARTIAL | On 2026-10-20 the linked project's notification objects and migration ledger were inspected; four other migrations appeared pending in a dry-run. No application deployment or migration DDL was performed. The direct migration list could not connect without the database password. |
 
 ## Interpretation
 

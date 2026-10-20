@@ -18,6 +18,14 @@ For every feature, bug fix, permission change, API change, migration, or deploym
 
 ## Close-out record
 
+- Feature/change: Recipient-scoped in-app notifications for document shares and successful updates, 2026-10-20.
+- Source and tests inspected: AppLayout, Supabase client, toast conventions, share/edit flow, audit schema/triggers, notification RLS/RPC, and frontend/DB test harness.
+- Defects found and corrected: update notices key on the successful audit request ID, not the document-version ID; updates to global documents must also notify all signed-in users. The trigger and DB regression coverage reflect both behaviors.
+- Changes: added migration `20261020000500_user_notifications.sql`, recipient-scoped read/subscription service, bell/panel/toast component, and layout/test integration. Notices do not grant document access; delivery uses Realtime with polling fallback.
+- Documents updated: README, API, THREATS, PROMPTS, PROJECT_WRITEUP, architecture, permission model, security design, testing, deployment, requirements evidence, project status, manual test cases, and security test results.
+- Verification: latest frontend suite passed (9 files, 30 passed, 1 existing todo); frontend lint/type-check and production build passed. Focused DB notification tests were blocked at setup (`ECONNREFUSED 127.0.0.1:54329`; 5 skipped). Remote notification objects and access controls were verified and the migration version recorded; a signed-in live notification/browser flow remains untested. No app deployment occurred.
+- Git: no commit or push was made.
+
 - Feature/change: Human-readable admin audit activities and accurate preview/download success logging, 2026-10-20.
 - Source and tests inspected: audit schema/hash chain, service functions and RLS grants, Edge Function handlers, admin audit query/UI, and DB/API/frontend tests.
 - Defect found: preview/download success was logged before fetching bytes and checking size/hash; the handler also silently swallowed audit-write failures for observed events.

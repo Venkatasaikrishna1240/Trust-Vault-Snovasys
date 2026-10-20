@@ -7,6 +7,9 @@ Last reviewed: **2026-10-20**. This is a local source and test report, not a pro
 - React/Vite/TypeScript application with Supabase Auth, document upload, search, sharing, history, and admin pages.
 - RLS-protected reads and nine Edge Functions backed by service-role-only `svc_*` operations.
 - Private Storage bucket, upload validation, document hashing, access checks, and audit events. The newest local migration adds human-readable audit labels and post-verification preview/download success records; it is not deployed.
+- Notification feature in migration `20261020000500_user_notifications.sql`: recipient-only notices for direct/global shares and successful edits/replacements; top-right UI, unread/read state, Realtime plus polling fallback. The configured project's notification table, RPC, four triggers, RLS, grants, and Realtime publication were verified present on 2026-10-20, and the migration version is recorded.
+- The configured Supabase project initially returned `PGRST205` for `public.user_notifications`, explaining the reported panel error. On post-authorization inspection the schema objects were already present; this session did not execute the migration DDL. It recorded the verified migration version only. A follow-up anonymous REST request returned permission denied as expected; authenticated browser notification delivery has not been exercised.
+- Login now always routes to `/` (dashboard) after sign-in, including when the sign-in page was reached from a protected document URL.
 - Migrations 0100–0900, including signed-in global visibility, upload-time sharing, and editor historical downloads, plus recipient lookup updates 20261020000100 and 20261020000200 and audit update 20261020000300.
 - Migration `20261020000200_recipient_name_and_username_search.sql` restores bounded suggestions by display name/email username; neither recipient-search migration has been applied to a hosted project.
 - Demo provisioning now includes the required upload fields. Its network workflow has not been exercised in a disposable Supabase project.
@@ -15,19 +18,21 @@ Last reviewed: **2026-10-20**. This is a local source and test report, not a pro
 
 - `npm --prefix frontend run build`: passed; Vite reported a JavaScript chunk over 500 KiB.
 - `npm --prefix frontend run lint`: passed (`tsc --noEmit`).
-- `npm --prefix frontend test -- --pool=threads --maxWorkers=1`: latest audit activity run passed, 7 files, 26 tests passed, 1 existing todo.
+- `npm --prefix frontend test -- --pool=threads --maxWorkers=1`: passed, 9 files, 30 tests passed, 1 existing todo.
 - `npm run typecheck:functions`: passed after the script was corrected to use `supabase/functions/deno.json`. Before that change, the script failed because it did not load the Deno project's dependency configuration.
+- Focused notification/login/guard tests passed: 3 files, 8 tests.
 - `node --check scripts/provision-demo.mjs`: passed; this checks syntax only, not requests against Supabase.
 - At the earlier audit baseline the worktree was clean on `main`. This review began on clean `security-hardening` at `cdf88b5`, tracking `origin/security-hardening`; no commit was created for this review.
 - A read-only static review found a transient cross-account display gap during direct A→B session replacement. The auth context now clears the old profile and gates protected content until B's profile loads; a regression test covers the transition. Recipient suggestions now match display names, email usernames, and full email addresses, returning the account email. This supports the requested picker experience but retains limited account-discovery risk. Backend tests for this migration/API change have not been run here.
 - Migration `20261020000300_audit_activity_details.sql` moves preview/download success logging until after byte retrieval, size/hash verification, and a final access recheck; the admin UI resolves names and summarizes activity. This migration is local only and has not been applied.
+- The focused notification DB test was attempted; all 5 cases were skipped when connection to `127.0.0.1:54329` was refused. No live signed-in notification/browser test was performed. A linked `db push --dry-run` showed four other pending migrations; none were applied. The CLI migration-list/direct database connection failed because no remote database password was configured.
 
 ## Not run or not established
 
-- Latest DB and API suites were attempted but could not connect to PostgreSQL at `127.0.0.1:54329`; 160 DB and 26 API tests were skipped before their bodies ran. Supabase CLI status confirmed local Docker/Podman is unavailable. The mutation suite remains unrun because the backend harness is unavailable.
+- Latest notification DB test attempt could not connect to PostgreSQL at `127.0.0.1:54329`; 5 cases were skipped before their bodies ran. Earlier DB/API suite results and unavailable local Docker/Podman remain recorded in prior evidence; the mutation suite remains unrun because the backend harness is unavailable.
 - The frontend test harness and static review do not exercise real Supabase Auth or the actual Storage API.
-- No real signed-in browser account-switch run, live Storage denial, hosted API test, deployment, migration, or production operation was performed. The account-switch regression test is frontend-mocked.
-- The previous hosted CLI notes (2026-10-19) reported migrations 0100–0800 and nine functions active, with 0900 pending. That information was not refreshed; do not infer current deployment state from it.
+- No real signed-in browser account-switch run, live Storage denial, or signed-in hosted API test was performed. No migration DDL or app deployment was performed. A read-only metadata inspection and a migration-ledger version record were performed against the linked Supabase project with authorization; no document/user data was accessed or changed.
+- The previous hosted CLI notes (2026-10-19) reported migrations 0100–0800 and nine functions active, with 0900 pending. On 2026-10-20, Management API metadata queries showed the notification migration's objects present and four other migrations pending in a dry run. The general migration list could not connect without the DB password; do not infer other deployment state.
 - Historical backend pass counts in older repository documents are not fresh evidence for the current migration set.
 - One frontend test remains marked `todo`; Deno has no separate unit-test suite; Vite reports a large chunk.
 - SQL-like and wildcard recipient-search regression cases are now defined in DB/API tests, but have not executed because the local database is unavailable.

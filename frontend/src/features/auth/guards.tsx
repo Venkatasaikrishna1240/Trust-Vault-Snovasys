@@ -1,14 +1,12 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { Spinner } from '../../components/ui/Skeleton'
 import AccessDenied from '../../pages/AccessDenied'
 
 export function RequireAuth() {
   const { session, loading } = useAuth()
-  const location = useLocation()
   if (loading) return <div className="grid h-full place-items-center"><Spinner label="Loading session" /></div>
-  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
-  if (location.pathname.toLowerCase().startsWith('/login')) return <Navigate to="/" replace />
+  if (!session) return <Navigate to="/login" replace />
   return <Outlet />
 }
 
