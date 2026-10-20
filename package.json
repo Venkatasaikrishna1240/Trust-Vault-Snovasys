@@ -17,7 +17,7 @@
     "test:backend:local": "bash scripts/run-local-backend-tests.sh",
     "test:mutation": "bash scripts/mutation-test.sh",
     "test:frontend": "npm --prefix frontend test",
-    "typecheck:functions": "deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts",
+    "typecheck:functions": "deno check --config supabase/functions/deno.json supabase/functions/*/index.ts supabase/functions/_shared/*.ts",
     "provision:demo": "node scripts/provision-demo.mjs"
   },
   "devDependencies": {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Globe2, Lock, Sparkles, Upload, Users } from 'lucide-react'
-import { metadataSchema, type MetadataValues } from '../lib/validation'
+import { metadataSchema, shareSchema, type MetadataValues } from '../lib/validation'
 import { uploadDocument } from '../services/documents'
 import { errorMessage } from '../services/api'
 import { Card, PageHeader } from '../components/ui/Card'
@@ -32,6 +32,7 @@ export default function UploadPage() {
   const [recipientError, setRecipientError] = useState<string | null>(null)
   const [shareError, setShareError] = useState<string | null>(null)
   const searchTerm = useDebounce(recipientQuery.trim(), 250)
+  const isRecipientEmail = shareSchema.shape.email.safeParse(searchTerm).success
   const {
     register,
     handleSubmit,
@@ -42,7 +43,7 @@ export default function UploadPage() {
   })
 
   useEffect(() => {
-    if (audience !== 'selected' || searchTerm.length < 3) {
+    if (audience !== 'selected' || !isRecipientEmail) {
       setRecipients([])
       setRecipientError(null)
       setRecipientLoading(false)
@@ -269,7 +270,7 @@ export default function UploadPage() {
               <div className="space-y-3.5 border-t border-slate-200/90 pt-4 mt-2">
                 <div>
                   <label htmlFor="recipient-search" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Find recipients by name or e-mail
+                    Find recipient by exact e-mail address
                   </label>
                   <input
                     id="recipient-search"
@@ -277,12 +278,15 @@ export default function UploadPage() {
                     autoComplete="off"
                     value={recipientQuery}
                     onChange={(e) => setRecipientQuery(e.target.value)}
-                    placeholder="Type at least 3 characters to search…"
+                    placeholder="Enter the complete e-mail address…"
                     className="block h-10 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm shadow-2xs placeholder:text-slate-400 focus:border-blue-600 focus:ring-3 focus:ring-blue-500/15 focus:outline-hidden"
                   />
                   <p className="mt-1.5 text-2xs text-slate-500">
                     {selectedRecipients.length} selected · changes apply when you upload.
                   </p>
+                  {searchTerm.length > 0 && !isRecipientEmail && (
+                    <p className="mt-1 text-xs text-slate-500">Enter a complete e-mail address to search.</p>
+                  )}
                 </div>
 
                 {shareError && (
@@ -300,7 +304,7 @@ export default function UploadPage() {
                     {recipientError}
                   </p>
                 )}
-                {!recipientLoading && !recipientError && searchTerm.length >= 3 && recipients.length === 0 && (
+                {!recipientLoading && !recipientError && isRecipientEmail && recipients.length === 0 && (
                   <p className="text-xs text-slate-500">No matching registered accounts.</p>
                 )}
 

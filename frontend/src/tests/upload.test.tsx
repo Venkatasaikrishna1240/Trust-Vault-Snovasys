@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAX_UPLOAD_BYTES, precheckFile } from '../lib/validation'
 import { FilePicker } from '../features/documents/FilePicker'
@@ -41,8 +41,9 @@ describe('upload precheck', () => {
     fireEvent.change(screen.getByLabelText('File'), { target: { files: [new File(['%PDF-1.4\n%%EOF'], 'contract.pdf', { type: 'application/pdf' })] } })
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Contract' } })
     fireEvent.click(screen.getByRole('radio', { name: /specific people/i }))
-    fireEvent.change(screen.getByRole('searchbox', { name: /find recipients/i }), { target: { value: 'User Two' } })
+    fireEvent.change(screen.getByRole('searchbox', { name: /find recipient by exact e-mail/i }), { target: { value: 'user2@example.com' } })
     expect(await screen.findByText('User Two')).toBeInTheDocument()
+    expect(searchShareRecipients).toHaveBeenCalledWith('user2@example.com')
     fireEvent.click(screen.getByRole('checkbox', { name: /user2@example.com/i }))
     fireEvent.change(screen.getByLabelText('Recipient access'), { target: { value: 'edit' } })
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
@@ -50,5 +51,20 @@ describe('upload precheck', () => {
     await waitFor(() => expect(uploadDocument).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Contract', shareEmails: ['user2@example.com'], permission: 'edit', isGlobal: false,
     })))
+  })
+
+  it('does not issue directory searches for partial names or email prefixes', async () => {
+    render(<Providers auth={authValue({}, 'viewer')}><UploadPage /></Providers>)
+    fireEvent.click(screen.getByRole('radio', { name: /specific people/i }))
+    const search = screen.getByRole('searchbox', { name: /find recipient by exact e-mail/i })
+
+    for (const query of ['User Two', 'user2@']) {
+      fireEvent.change(search, { target: { value: query } })
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      })
+      expect(searchShareRecipients).not.toHaveBeenCalled()
+    }
+    expect(screen.getByText(/enter a complete e-mail address/i)).toBeInTheDocument()
   })
 })

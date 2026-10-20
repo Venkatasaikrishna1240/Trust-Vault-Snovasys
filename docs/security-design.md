@@ -38,3 +38,4 @@ API authorization uses an explicit bearer header rather than ambient cookies, so
 
 ## Abuse controls and remaining risks
 
+Recipient lookup is rate-limited and audits query length/result count without storing the address. Migration `20261020000100_exact_email_recipient_lookup.sql` restricts it to case-insensitive exact email matches; partial-name and email-prefix directory searches are not available. A person who already knows an exact address can still confirm whether it is registered, which is also inherent in granting access by email.

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { getMyProfile } from '../../services/data'
@@ -25,17 +25,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const currentUserId = useRef<string | null>(null)
 
   useEffect(() => {
     let active = true
+    let receivedAuthEvent = false
+    const applySession = (nextSession: Session | null) => {
+      const nextUserId = nextSession?.user.id ?? null
+      if (nextUserId !== currentUserId.current) {
+        currentUserId.current = nextUserId
+        if (nextUserId) setLoading(true)
+        setProfile(null)
+        setSession(nextSession)
+        if (!nextUserId) setLoading(false)
+        return
+      }
+      setSession(nextSession)
+      if (!nextUserId) setLoading(false)
+    }
     supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      if (!data.session) setLoading(false)
+      if (!active || receivedAuthEvent) return
+      applySession(data.session)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
-      setSession(s)
-      if (!s) { setProfile(null); setLoading(false) }
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      receivedAuthEvent = true
+      applySession(nextSession)
     })
     return () => { active = false; sub.subscription.unsubscribe() }
   }, [])

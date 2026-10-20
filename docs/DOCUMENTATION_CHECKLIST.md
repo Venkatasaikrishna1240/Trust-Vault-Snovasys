@@ -18,6 +18,22 @@ For every feature, bug fix, permission change, API change, migration, or deploym
 
 ## Close-out record
 
+- Feature/change: Security-hardening review, fresh local verification and evidence, 2026-10-20.
+- Source of requirements: project-owner brief in the active interaction; no separate original challenge specification was found in the repository.
+- Source review: a focused read-only review found a transient account-switch display gap, fixed and regression-tested; partial recipient directory lookup was narrowed to exact-email matching with regression tests added. Exact-address registration confirmation remains possible. Hosted services were not accessed.
+- Code/configuration changes: corrected the Deno type-check script to use the function config; added the required upload form fields to the demo provisioner; corrected stale sign-up copy; added public-only/local `.env.example` files. `.gitignore` already excludes local env files and allows `.env.example`, so it was not changed.
+- Documents/evidence updated: README, API, THREATS, PROMPTS, PROJECT_WRITEUP, AGENTS, local-development, deployment, testing, project status, `SECURITY_AUDIT.md`, requirements matrix, manual cases and test result logs.
+- Tests actually run: frontend production build passed with the existing >500 KiB warning; frontend lint/type-check passed; frontend tests passed with 19 passed and 1 existing todo using one worker after initial worker/option failures; `npm run typecheck:functions` passed after its config fix; `node --check scripts/provision-demo.mjs` passed. Exact logs are in `evidence/test-logs/`.
+- Not run: backend DB/API/mutation suites because Bash, PostgreSQL, PostgREST and Docker were unavailable; real Auth/Storage/browser/deployment checks. No hosted project or production data was used.
+- Git: initial `main` worktree was clean; current branch is `security-hardening`; no commit or push was made.
+
+- Feature/change: Exact-email-only sharing recipient lookup, 2026-10-20.
+- Source/tests: SQL function, Edge route, upload picker, DB/API/frontend regression tests.
+- Behavior: partial-name and email-prefix searches return no recipients; exact case-insensitive email lookup remains available. Exact-address existence can still be confirmed.
+- Migration: added `20261020000100_exact_email_recipient_lookup.sql`; no hosted migration was applied.
+- Documentation: README, API, threat model, security design, architecture, permission model, deployment, testing, requirements matrix, and audit/evidence records updated.
+- Verification: focused frontend regressions passed (7 tests); full frontend suite passed (20 tests, 1 existing todo); build, lint/type-check, and Edge Function type-check passed. DB/API suites were attempted but could not connect to PostgreSQL at `127.0.0.1:54329`, so their test bodies did not run.
+
 - Feature/change: Documentation audit and submission write-up update, 2026-10-19.
 - Source and tests inspected: migrations 0100–0900, RLS/Storage policy, all Edge Function handlers, frontend permission flows, DB/API/frontend tests, scripts and project configuration.
 - Documents updated: README, THREATS, PROMPTS, API, AGENTS, PROJECT_WRITEUP and all required architecture/permission/security/testing/deployment/local-development docs. This checklist added.

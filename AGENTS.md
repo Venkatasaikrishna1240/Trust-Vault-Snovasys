@@ -6,7 +6,7 @@ Applies to GitHub Copilot, Claude, Antigravity, and other coding agents.
 
 TrustVault provides private document storage and owner-controlled named/global-to-signed-in-user sharing. Stack: React 18, Vite, TypeScript, Tailwind, Supabase Auth/Postgres/RLS/private Storage/Edge Functions (Deno), Vercel config. Frontend is `frontend/`; SQL history `supabase/migrations/`; Edge Functions `supabase/functions/{_shared,document-*,admin-*}`; DB/API tests `supabase/tests/{db,api}`; harness `supabase/tests/harness`; scripts `scripts/`; design docs `docs/`.
 
-**Before any change:** inspect the relevant implementation, migrations, tests, existing docs and current Git/status. This workspace may have no `.git` history. Do not infer deployed behavior from local files.
+**Before any change:** inspect the relevant implementation, migrations, tests, existing docs, Git status, branch, remotes, and available history. Do not infer deployed behavior from local files.
 
 ## Authentication and authorization — invariant
 

@@ -123,11 +123,19 @@ describe('cross-user access through the Edge Functions', () => {
     expect((await fn('document-get', stranger, {}, `?id=${globalDoc.id}`)).status).toBe(200);
   });
 
-  it('recipient lookup searches by account name or e-mail and excludes the searching user', async () => {
-    const r = await post('document-share', owner, { action: 'search_recipients', query: 'stranger-' });
+  it('recipient lookup requires an exact email and excludes the searching user', async () => {
+    const partial = await post('document-share', owner, { action: 'search_recipients', query: 'stranger-' });
+    expect(partial.status).toBe(200);
+    expect((await partial.json()).data.recipients).toEqual([]);
+
+    const byName = await post('document-share', owner, { action: 'search_recipients', query: 'Stranger' });
+    expect(byName.status).toBe(200);
+    expect((await byName.json()).data.recipients).toEqual([]);
+
+    const r = await post('document-share', owner, { action: 'search_recipients', query: stranger.email });
     expect(r.status).toBe(200);
     const found = (await r.json()).data.recipients as Array<{ id: string; email: string }>;
-    expect(found.some((person) => person.id === stranger.id && person.email === stranger.email)).toBe(true);
+    expect(found).toEqual([expect.objectContaining({ id: stranger.id, email: stranger.email })]);
     expect(found.some((person) => person.id === owner.id)).toBe(false);
   });
 

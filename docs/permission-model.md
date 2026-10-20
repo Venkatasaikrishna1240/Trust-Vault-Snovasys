@@ -21,6 +21,7 @@ The admin role does not create document access. Every signed-in profile, includi
 - Admin UI can change another non-admin profile between `viewer` and `owner`; it cannot change own role, another admin, or create an admin. Admin creation/promotion is an out-of-band trusted operation.
 - `owner`/`viewer` account role governs administration capability only; it is separate from each document's owner and per-document `read`/`edit` grants.
 - A grant is to an existing registered user email; self-grants are rejected. A document/user has at most one active grant; changing read/edit revokes the previous row and inserts a new row so history remains. Revocation is soft-history, not destructive grant-row deletion.
+- Recipient lookup accepts a complete email address and matches it case-insensitively and exactly. It does not search names or partial email strings. A lookup can still confirm whether a known exact address has an account.
 - Multiple selected upload recipients are limited to 20; upload-time document record and grants/global visibility are created in one SQL transaction.
 
 ## Global visibility and revocation

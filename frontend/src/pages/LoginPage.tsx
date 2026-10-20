@@ -185,7 +185,7 @@ export default function LoginPage() {
             </p>
             {mode === 'signup' && (
               <p className="mt-2 text-2xs text-slate-400">
-                New accounts start as viewers. An administrator can grant upload rights.
+                Every signed-in account can upload and own documents. Access to other people's documents is granted separately by each owner.
               </p>
             )}
           </div>
