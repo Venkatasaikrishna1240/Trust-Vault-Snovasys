@@ -23,19 +23,24 @@ describe('svc_* functions: authorisation, revocation, audit', () => {
   const rid = () => randomUUID();
 
   // -------------------------------------------------------------------------
-  describe('recipient lookup privacy', () => {
-    it('matches only another account exact email, case-insensitively', async () => {
-      const partial = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.slice(0, 8), rid()]);
-      const name = await svc('svc_search_share_recipients', [c.owner.id, `Stranger ${c.stranger.id.slice(0, 4)}`, rid()]);
-      const exact = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.toUpperCase(), rid()]);
+  describe('recipient lookup', () => {
+    it('matches display names and email usernames, case-insensitively', async () => {
+      const partialUsername = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.split('@')[0].slice(0, 8), rid()]);
+      const displayName = await svc('svc_search_share_recipients', [c.owner.id, `stranger ${c.stranger.id.slice(0, 4)}`, rid()]);
+      const exactEmail = await svc('svc_search_share_recipients', [c.owner.id, c.stranger.email.toUpperCase(), rid()]);
 
-      expect(partial).toEqual({ ok: true, recipients: [] });
-      expect(name).toEqual({ ok: true, recipients: [] });
-      expect(exact).toMatchObject({
+      expect(partialUsername).toMatchObject({
         ok: true,
         recipients: [{ id: c.stranger.id, email: c.stranger.email }],
       });
-      expect(exact.recipients).toHaveLength(1);
+      expect(displayName).toMatchObject({
+        ok: true,
+        recipients: [{ id: c.stranger.id, email: c.stranger.email }],
+      });
+      expect(exactEmail).toMatchObject({
+        ok: true,
+        recipients: [{ id: c.stranger.id, email: c.stranger.email }],
+      });
 
       const self = await svc('svc_search_share_recipients', [c.owner.id, c.owner.email, rid()]);
       expect(self).toEqual({ ok: true, recipients: [] });

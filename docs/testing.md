@@ -19,9 +19,9 @@ Fresh results from 2026-10-20 are in `evidence/security-test-results.md`; comman
 ## Test organization and examples
 
 - `supabase/tests/db/rls.test.ts`: per-table RLS, anonymous denial, guessed/cross-user IDs, column grants, client write denial, profile/role escalation, audit visibility, safe search, storage-policy denial and svc privilege enumeration.
-- `supabase/tests/db/svc.test.ts`: upload authorization, exact-email-only recipient lookup, current/historical download, read/edit behavior, grants and revocation, metadata/file edits, delete, role changes, audit queries, fail-closed service operations.
+- `supabase/tests/db/svc.test.ts`: upload authorization, recipient display-name/email-username suggestions, current/historical download, read/edit behavior, grants and revocation, metadata/file edits, delete, role changes, audit queries, fail-closed service operations.
 - `supabase/tests/db/audit.test.ts`: append-only triggers, hash chain, sequence/link correctness, tampering, known recomputed-chain limitation, concurrency, lock/revocation timing.
-- `supabase/tests/api/security.test.ts`: function authentication, CORS preflight, upload-time sharing/global visibility, exact-email recipient lookup (including partial-query denials), preview/download, edit/history, revoke, direct PostgREST bypass, audit/admin, malformed and malicious uploads.
+- `supabase/tests/api/security.test.ts`: function authentication, CORS preflight, upload-time sharing/global visibility, recipient name/username suggestions, preview/download, edit/history, revoke, direct PostgREST bypass, audit/admin, malformed and malicious uploads.
 - `frontend/src/tests`: `apiClient.test.ts`, `authContext.test.tsx`, `authGuard.test.tsx`, `permissions.test.tsx`, `upload.test.tsx`.
 
 ## Evidence and caveats

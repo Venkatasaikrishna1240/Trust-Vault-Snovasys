@@ -5,7 +5,7 @@
 
 ## Conclusion
 
-The broad read-only review initially reported no confirmed exploitable vulnerability. A focused follow-up found a transient private-data display gap during direct account replacement (A→B); it is fixed in this worktree and covered by a frontend regression test. The follow-up also found that partial recipient searches exposed matching account details. The lookup now requires a complete exact email address, with frontend, API, and database regression tests added. A caller who already knows an exact address can still confirm whether it is registered. This is not a security certification: the DB/API suites have not run in this environment, and no hosted Supabase service or real browser session was exercised. See `evidence/security-test-results.md` for commands actually run and `docs/requirements-evidence.md` for requirement-level status.
+The broad read-only review initially reported no confirmed exploitable vulnerability. A focused follow-up found a transient private-data display gap during direct account replacement (A→B); it is fixed in this worktree and covered by a frontend regression test. The review also identified recipient directory disclosure from partial searches. The product's sharing workflow now intentionally supports suggestions by display name or email username; this is bounded, rate-limited, and audited, but still exposes matching email addresses to authenticated users. This residual trade-off is documented below. This is not a security certification: the DB/API suites have not run in this environment, and no hosted Supabase service or real browser session was exercised. See `evidence/security-test-results.md` for commands actually run and `docs/requirements-evidence.md` for requirement-level status.
 
 The reviewed boundary includes:
 
@@ -20,9 +20,9 @@ The reviewed boundary includes:
 | # | Severity | File | Lines | Vulnerability | Confidence |
 |---|----------|------|-------|---------------|------------|
 | 1 | 🟡 MEDIUM | `frontend/src/features/auth/AuthContext.tsx` | 33–45 | A direct A→B session replacement could briefly leave A's profile and private page mounted under B's session before the profile-loading gate ran. Fixed by clearing the prior profile and enabling the gate before applying a changed user session; `frontend/src/tests/authContext.test.tsx` covers the transition. | 9/10 |
-| 2 | ⚪ LOW | `supabase/migrations/20261020000100_exact_email_recipient_lookup.sql` | 4–49 | The prior partial-name/email lookup exposed a searchable account directory. Fixed in source by case-insensitive exact email matching and full-email UI validation; regression tests cover partial queries and exact matches. Exact-address account confirmation remains possible. | 10/10 |
+| 2 | ⚪ LOW | `supabase/migrations/20261020000200_recipient_name_and_username_search.sql` | 3–55 | Recipient suggestions disclose up to 20 matching registered profile emails to authenticated users searching display names or email usernames. Minimum query length, result cap, rate limit, and audit reduce bulk enumeration but do not eliminate this intentional privacy trade-off. | 10/10 |
 
-The medium issue is fixed in the current working tree. The low-severity directory exposure is narrowed to exact-email lookup, retaining sharing by registered email while preventing partial-name and prefix enumeration. The function remains rate-limited and audited. No other exploitable vulnerability was confirmed by static review.
+The medium issue is fixed in the current working tree. The low-severity recipient discovery exposure remains as an intentional sharing feature: results are bounded, rate-limited, and audited, but authenticated users can discover matching emails. No other exploitable vulnerability was confirmed by static review.
 
 ## Limits and residual risks
 
@@ -30,7 +30,7 @@ The medium issue is fixed in the current working tree. The low-severity director
 - A pattern scan of tracked working-tree files and Git-reachable blobs found no recognizable Supabase service-role/secret values. This does not cover untracked files, unreachable Git objects, or credentials that are encoded/split or do not match known formats.
 - The DB/API tests use a local harness; they do not emulate GoTrue or the actual Supabase Storage API. This environment lacked Bash, PostgreSQL, PostgREST, and Docker, so those tests were not run.
 - An authorized request already in progress at revocation may complete. A user can retain bytes already previewed, downloaded, copied, or captured.
-- Exact-email recipient lookup can confirm whether a known address is registered; this is also inherent in granting access by email. Backend regression tests have been added but were not executable in this environment.
+- Recipient lookup allows discovery of matching account emails by name or email username. The project owner requested this UX; the 3-character threshold, 20-result limit, audit, and per-user rate limit reduce but cannot prevent enumeration. Backend regression tests have been added but were not executable in this environment.
 - The audit hash chain is tamper-evident for ordinary row-level changes, not tamper-proof against a database owner who can rewrite the events and recompute the chain.
 - No antivirus/content disarm, mandatory MFA, independent audit-head storage, backup-retention verification, or browser E2E suite is established by this repository.
 

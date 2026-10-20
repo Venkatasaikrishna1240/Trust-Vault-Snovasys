@@ -12,7 +12,7 @@
 
 - `public`: profiles, documents, versions, permission grants, audit tables; client-safe search/dashboard functions and service operations.
 - `app`: internal helper functions and audit implementation; not exposed by Supabase API schemas.
-- Migrations in lexical order: 0100 core tables/types/triggers; 0200 access helpers; 0300 append-only hash-chain audit; 0400 RLS/privileges; 0500 service operations/read helpers; 0600 private bucket/policy; 0700 any-profile uploads, global-to-authenticated visibility, preview and edit-only current downloads; 0800 upload-time sharing, audited recipient lookup, sender names; 0900 enables active editors as well as owners to download historical versions; 20261020000100 restricts recipient lookup to exact email matches.
+- Migrations in lexical order: 0100 core tables/types/triggers; 0200 access helpers; 0300 append-only hash-chain audit; 0400 RLS/privileges; 0500 service operations/read helpers; 0600 private bucket/policy; 0700 any-profile uploads, global-to-authenticated visibility, preview and edit-only current downloads; 0800 upload-time sharing, audited recipient lookup, sender names; 0900 enables active editors as well as owners to download historical versions; 20261020000100 briefly restricted lookup to exact emails; 20261020000200 restores bounded partial display-name/email-username suggestions.
 
 Never edit an applied migration on a shared database. Create a new timestamped migration and inspect migration history before push. At the most recent CLI inspection (2026-10-19), hosted migration history had 0100–0800 applied, with 0900 pending; see `docs/PROJECT_STATUS.md` for timestamped state. Applying 0900 is still required to enable editor historical downloads on that hosted database.
 

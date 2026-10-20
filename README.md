@@ -6,7 +6,7 @@ TrustVault is a secure document-sharing application: signed-in users upload PDF/
 
 - Supabase email/password sign-in and sign-up; database profiles start as `viewer`.
 - Every registered profile may upload and own documents. Account role does not grant access to another user's private documents.
-- Exact-email recipient lookup for multi-recipient upload sharing, reader/editor selection, grant changes, individual or batch revoke. Partial names and email prefixes are not searchable.
+- Recipient suggestions for multi-recipient upload sharing search display names and the username part of email addresses after three characters; matches show the email before selection. Grant changes and individual or batch revoke are supported.
 - Optional visibility to all signed-in accounts (not anonymous/public-link access).
 - Readers can view metadata and get an audited inline preview; owners/editors can download current and historical versions. Editors can edit/replace files but cannot share or delete. Owners control sharing and deletion.
 - Private Storage bucket, byte-level upload validation, server-generated object keys, SHA-256 checking on preview/download, and append-only hash-linked audit events.
@@ -18,7 +18,7 @@ TrustVault is a secure document-sharing application: signed-in users upload PDF/
 - Backend: Supabase Auth, PostgreSQL, RLS, private Storage, Deno TypeScript Edge Functions; Supabase CLI for migrations/deployments; Vercel configuration in `frontend/`.
 - Flow: browser Auth token → Edge Function verifies token with `auth.getUser()` → service-role-only `svc_*` database operation authorizes and audits → only after success the function accesses private Storage.
 - Main directories: `frontend/src/{pages,features,services}`; `supabase/migrations`; `supabase/functions`; `supabase/tests`; `scripts`; `docs`.
-- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup.
+- Current database sequence: 0100 core schema, 0200 authorization helpers, 0300 audit chain, 0400 RLS/privileges, 0500 service functions, 0600 private bucket, 0700 all-account upload/global visibility/preview, 0800 upload-time sharing/recipient lookup/sender names, 0900 editor history downloads, 20261020000100 exact-email recipient lookup, 20261020000200 name/username recipient suggestions.
 
 See [architecture](docs/architecture.md), [permission model](docs/permission-model.md), and [security design](docs/security-design.md).
 

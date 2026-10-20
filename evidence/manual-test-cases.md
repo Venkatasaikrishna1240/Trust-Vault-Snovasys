@@ -18,7 +18,7 @@ Run only against local Supabase or a dedicated disposable test project with dumm
 | M-10 | Sign in as Owner A, view private documents, sign out, then sign in as Owner B in the same browser. Repeat using a second browser tab. | Owner A’s private UI/query data is cleared or inaccessible after account switching. | NOT TESTED |
 | M-11 | Upload allowed PDF/PNG/JPEG dummy files and invalid, oversized, mismatched, or malformed files. Search documents as owner, reader, and unrelated user. | Allowed files pass validation; malformed/oversized files fail; search returns only accessible data. | NOT TESTED |
 | M-12 | Before any destructive test, check the configured Supabase URL/project ref and confirm it is local/disposable. Run build, frontend tests, Deno check, then the backend suite only if its isolated harness prerequisites exist. | Tests use dummy data and do not target a hosted production project. Capture sanitized output and exact status. | NOT TESTED |
-| M-13 | In the upload sharing picker, enter a partial name and an email prefix, then enter a complete registered email (including a different letter case). | Partial values return no accounts and do not issue a lookup; the complete exact email resolves the registered recipient case-insensitively. | NOT TESTED |
+| M-13 | In the upload sharing picker, enter at least three characters from a registered display name or the part of an email before `@`; also try a full email. Select a suggestion and inspect its email before uploading. | Matching accounts are suggested case-insensitively; each suggestion shows its email; selection and upload sharing continue to work. Terms shorter than three characters do not trigger a search. | NOT TESTED |
 
 ## Five-minute demo checklist
 

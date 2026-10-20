@@ -123,20 +123,24 @@ describe('cross-user access through the Edge Functions', () => {
     expect((await fn('document-get', stranger, {}, `?id=${globalDoc.id}`)).status).toBe(200);
   });
 
-  it('recipient lookup requires an exact email and excludes the searching user', async () => {
+  it('recipient lookup finds display names and email usernames without returning the searching user', async () => {
     const partial = await post('document-share', owner, { action: 'search_recipients', query: 'stranger-' });
     expect(partial.status).toBe(200);
-    expect((await partial.json()).data.recipients).toEqual([]);
+    const emailMatch = (await partial.json()).data.recipients as Array<{ id: string; email: string }>;
+    expect(emailMatch.some((person) => person.id === stranger.id && person.email === stranger.email)).toBe(true);
 
-    const byName = await post('document-share', owner, { action: 'search_recipients', query: 'Stranger' });
+    const byName = await post('document-share', owner, { action: 'search_recipients', query: 'Stranger ' + stranger.id.slice(0, 4) });
     expect(byName.status).toBe(200);
-    expect((await byName.json()).data.recipients).toEqual([]);
+    const nameMatch = (await byName.json()).data.recipients as Array<{ id: string; email: string }>;
+    expect(nameMatch.some((person) => person.id === stranger.id && person.email === stranger.email)).toBe(true);
 
-    const r = await post('document-share', owner, { action: 'search_recipients', query: stranger.email });
-    expect(r.status).toBe(200);
-    const found = (await r.json()).data.recipients as Array<{ id: string; email: string }>;
-    expect(found).toEqual([expect.objectContaining({ id: stranger.id, email: stranger.email })]);
-    expect(found.some((person) => person.id === owner.id)).toBe(false);
+    const exactEmail = await post('document-share', owner, { action: 'search_recipients', query: stranger.email });
+    expect(exactEmail.status).toBe(200);
+    const exactMatch = (await exactEmail.json()).data.recipients as Array<{ id: string; email: string }>;
+    expect(exactMatch.some((person) => person.id === stranger.id && person.email === stranger.email)).toBe(true);
+
+    expect(emailMatch.some((person) => person.id === owner.id)).toBe(false);
+    expect(nameMatch.some((person) => person.id === owner.id)).toBe(false);
   });
 
   it('owner downloads the exact bytes', async () => {

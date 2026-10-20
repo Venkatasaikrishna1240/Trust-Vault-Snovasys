@@ -41,9 +41,14 @@ describe('upload precheck', () => {
     fireEvent.change(screen.getByLabelText('File'), { target: { files: [new File(['%PDF-1.4\n%%EOF'], 'contract.pdf', { type: 'application/pdf' })] } })
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Contract' } })
     fireEvent.click(screen.getByRole('radio', { name: /specific people/i }))
-    fireEvent.change(screen.getByRole('searchbox', { name: /find recipient by exact e-mail/i }), { target: { value: 'user2@example.com' } })
+    const recipientSearch = screen.getByRole('searchbox', { name: /find recipient by name or username/i })
+    fireEvent.change(recipientSearch, { target: { value: 'User' } })
     expect(await screen.findByText('User Two')).toBeInTheDocument()
-    expect(searchShareRecipients).toHaveBeenCalledWith('user2@example.com')
+    expect(searchShareRecipients).toHaveBeenCalledWith('User')
+
+    fireEvent.change(recipientSearch, { target: { value: 'user2' } })
+    await waitFor(() => expect(searchShareRecipients).toHaveBeenCalledWith('user2'))
+    expect(screen.getByText('User Two')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: /user2@example.com/i }))
     fireEvent.change(screen.getByLabelText('Recipient access'), { target: { value: 'edit' } })
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
@@ -53,18 +58,19 @@ describe('upload precheck', () => {
     })))
   })
 
-  it('does not issue directory searches for partial names or email prefixes', async () => {
+  it('searches after three characters and clears suggestions for shorter terms', async () => {
+    searchShareRecipients.mockResolvedValue([])
     render(<Providers auth={authValue({}, 'viewer')}><UploadPage /></Providers>)
     fireEvent.click(screen.getByRole('radio', { name: /specific people/i }))
-    const search = screen.getByRole('searchbox', { name: /find recipient by exact e-mail/i })
+    const search = screen.getByRole('searchbox', { name: /find recipient by name or username/i })
 
-    for (const query of ['User Two', 'user2@']) {
-      fireEvent.change(search, { target: { value: query } })
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 300))
-      })
-      expect(searchShareRecipients).not.toHaveBeenCalled()
-    }
-    expect(screen.getByText(/enter a complete e-mail address/i)).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'us' } })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+    expect(searchShareRecipients).not.toHaveBeenCalled()
+
+    fireEvent.change(search, { target: { value: 'use' } })
+    await waitFor(() => expect(searchShareRecipients).toHaveBeenCalledWith('use'))
   })
 })
