@@ -135,7 +135,7 @@ At the 2026-10-21 review, the frontend build, frontend TypeScript check, configu
 
 ## Vercel deployment
 
-Configure the Vercel project root as `frontend`, framework as Vite, build command as `npm run build`, and output directory as `dist`. Configure only the public frontend variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; do not set service-role credentials in the frontend environment. `frontend/vercel.json` provides the SPA rewrite and security headers.
+Configure the Vercel project root as `frontend`, framework as Vite, build command as `npm run build`, and output directory as `dist`. Configure only the public frontend variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; do not set service-role credentials in the frontend environment. `frontend/vercel.json` provides the SPA rewrite and security headers, including the explicit Google Fonts origins referenced by `frontend/index.html`.
 
 Configure Supabase Auth Site URL and production redirect URLs for the deployed frontend, explicitly decide and verify email confirmation policy, set exact production origins in the Edge Function `ALLOWED_ORIGINS`, deploy reviewed migrations and functions, and provision the first admin through a trusted operator process. Then run the role-based and post-deployment checks from [deployment guide](docs/deployment.md). Do not infer successful production behavior from source or local test results.
 

@@ -63,6 +63,7 @@ The browser never receives `storage_key` values or reusable signed URLs. The `ap
 5. The user signs in through `signInWithPassword()`. The frontend protected-route guard requires a session. Edge Functions independently require a valid JWT and verify it with Auth `getUser()`.
 6. The frontend loads the user's profile for display and UX guards. The admin UI guard is not a security boundary; database/service operations enforce admin authority server-side.
 7. Supabase JS is configured with `persistSession: true` and `autoRefreshToken: true`. Auth state changes update the app session; profile state is cleared on identity changes. Sign-out calls Supabase Auth, and an API 401 triggers sign-out.
+8. Sign-in errors are mapped to safe messages for known Supabase Auth codes (including unconfirmed email, invalid credentials, rate limiting, and disabled accounts); unknown errors do not expose raw backend details.
 
 ### Email confirmation, domain restrictions, and account status
 
@@ -262,10 +263,10 @@ Manual testing should use distinct disposable Admin, Owner A, Owner B, Editor, a
 - Framework preset: Vite.
 - Build command: `npm run build`.
 - Output directory: `dist`.
-- SPA rewrite and CSP/security headers: `frontend/vercel.json`.
+- SPA rewrite and CSP/security headers: `frontend/vercel.json`; the CSP permits the Google Fonts hosts referenced by `frontend/index.html`.
 - Public frontend environment variable names: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Never use service-role or secret keys in frontend configuration.
 
-Actual Vercel response headers and rendered PDF preview must be checked after deployment; local JSON/config validation does not prove deployed behavior.
+Actual Vercel response headers and rendered PDF preview must be checked after deployment; local JSON/config validation does not prove deployed behavior. The previous production browser inspection reported Google Fonts blocked by the deployed CSP; the local policy has been updated, but requires a Vercel redeploy to take effect.
 
 ### Supabase
 

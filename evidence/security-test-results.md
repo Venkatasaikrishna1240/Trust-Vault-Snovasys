@@ -117,3 +117,11 @@ The owner confirmed the configured hosted Supabase project is dedicated to testi
 | Local DB/API suites and mutation harness | Not run | BLOCKED | Bash, Docker, Supabase CLI, and a local PostgreSQL test server are unavailable here. Hosted project was not used for destructive test suites. |
 
 These checks establish only that the hosted test project's public Auth endpoint is reachable and that the tested anonymous routes deny requests. They do not establish valid-token identity handling, role authority, authenticated RLS, owner/viewer permissions, Storage object access, audit outcomes, database migration state, or Vercel deployment behavior.
+
+## Production login diagnostic — 2026-10-21
+
+The user provided a screenshot of the production login page showing the generic “Sign-in failed. Check your e-mail and password.” message. No credentials were submitted or inspected. Read-only inspection found that the Vercel JavaScript bundle embeds the same Supabase project ref and public anon key as this checkout; the public Auth settings endpoint returned HTTP 200 with email sign-up enabled and email auto-confirm disabled. Therefore the production frontend is connected to the expected project, but the screenshot alone cannot distinguish an unconfirmed email from incorrect credentials or another user-specific Auth failure. The app previously discarded Supabase Auth's error code, so the exact reason was hidden.
+
+The frontend now maps known Auth error codes to safe actionable messages and has four focused tests. `npm --prefix frontend test -- --pool=threads --maxWorkers=1 src/tests/authErrors.test.ts` passed (1 file, 4 tests); `npm --prefix frontend run lint` and `npm --prefix frontend run build` passed. This source change is not yet deployed; Vercel must be redeployed before the login page can show the more specific message.
+
+Production browser inspection also reported CSP violations for the Google Fonts stylesheet. `frontend/vercel.json` now permits the exact Google Fonts stylesheet and font hosts used by `frontend/index.html`; this is a display/CSP issue, not the cause of the Auth rejection. Vercel must be redeployed and the response header rechecked.

@@ -20,7 +20,7 @@ Do not infer deployed behavior from local source. Verify the Supabase project re
 - Confirm the Vercel project root is `frontend`, the framework preset is Vite, the build command is `npm run build`, and the output directory is `dist`.
 - Confirm only `VITE_SUPABASE_URL` and the public `VITE_SUPABASE_ANON_KEY` are present in frontend environment settings; do not copy any service-role/secret value into Vercel.
 - Load `/login`, then directly load and refresh `/documents` and `/documents/<test-id>` to verify the SPA rewrite; unauthenticated requests should return to sign-in.
-- Inspect deployed response headers for the CSP, including `frame-src 'self' blob:` for PDF preview, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` from `frontend/vercel.json`.
+- Inspect deployed response headers for the CSP, including `frame-src 'self' blob:` for PDF preview and the Google Fonts stylesheet/font origins used by `frontend/index.html`, plus `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer` from `frontend/vercel.json`.
 - Sign in with isolated test identities and run the live authorization smoke checks in step 10. Do not use production user data for negative tests.
 
 ## Demo data cautions
