@@ -63,6 +63,7 @@ case "$cmd" in
       echo "applying $(basename "$f")"
       psql_su -d "$DB" -q -f "$f"
     done
+    psql_su -d "$DB" -q -f "$ROOT/supabase/tests/support/harness_auth_admin.sql"
     echo "OK: $DB ready on 127.0.0.1:$PORT (superuser: postgres, no password)"
     ;;
   *)

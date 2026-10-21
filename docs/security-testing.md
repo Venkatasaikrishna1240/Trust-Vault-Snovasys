@@ -39,6 +39,9 @@ See `../evidence/security-test-results.md` for exact commands and hosted checks 
 4. Attempt direct Data API and Storage requests with viewer B's own access token; never substitute an admin/service-role key.
 5. Confirm owner B/admin/outsider cannot access owner A's private document by changing IDs in URLs or request bodies.
 6. Inspect the audit events as an authorized admin; attempt ordinary-client changes only in the disposable DB harness and confirm they are rejected.
+7. With disposable admin and employee identities, call `admin-users` directly as a non-admin and verify 403. Deactivate an employee who has a test-only incoming grant, then reuse the old token against document Edge Functions, PostgREST reads, notification read-state RPC, and direct Storage; protected resources should remain denied while the employee can see only their own inactive profile.
+8. Confirm the owner's test document remains present and accessible to its owner, the employee's grant is revoked, new grants to the inactive profile fail, and Auth ban state was requested. Reactivate the employee and verify the old grant stays revoked.
+9. Deactivate an employee with an owned test document and verify permanent removal is blocked. Then use a separate documentless employee to test typed confirmation, Auth deletion, retained audit history, retry after an injected Auth Admin failure, and repeated removal. The test harness simulates Auth Admin; repeat with disposable real Auth accounts before production rollout.
 
 Expected HTTP status codes and metadata behavior are in `API.md`. Keep an already downloaded copy out of the test evidence; revocation cannot erase data already delivered to a user's device.
 

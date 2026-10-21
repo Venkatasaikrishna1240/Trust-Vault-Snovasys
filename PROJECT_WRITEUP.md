@@ -10,12 +10,14 @@ For this challenge, I worked on the problem of securely storing documents and sh
 - Every signed-in profile can upload and own PDF, PNG, and JPEG files.
 - Owners can grant named users read or edit access, change/revoke grants, or make a document visible to all signed-in accounts. Global visibility is not anonymous internet access.
 - Readers can see metadata and request a current inline preview. Owners/editors can download current and historical versions. Editors may edit/replace; only owners manage sharing/deletion.
-- Admins can review audit events and change other non-admin accounts between `owner` and `viewer`; admin status does not bypass document access.
+- Admins can review audit events, change eligible roles, deactivate/reactivate employees, and permanently remove eligible accounts; admin status does not bypass document access.
 - RLS-protected reads, a private Storage bucket with restrictive client-deny policy, audited service-role database operations, and a hash-linked append-only audit trail.
 
 ## How access and file handling work
 
 Each Edge Function validates the Supabase Auth token using `auth.getUser()`. The actor comes from that verified user, never request fields. A service-role-only `svc_*` function checks current database grants and writes an audit event before returning a storage key. Only then does the Edge Function read/write private Storage. No reusable signed URLs are issued. Editors and owners may request historical downloads through the same re-authorized/audited path.
+
+Employee deactivation commits an inactive profile state and revokes incoming grants before the trusted function applies an Auth ban. RLS and service routines check account status so a stale access token alone cannot retain protected access. Permanent Auth removal is staged and blocked until owned documents, authored versions, and issued permission references are resolved; it does not delete or transfer documents and preserves audit identity snapshots.
 
 ## Security decisions and limitations
 
@@ -27,4 +29,4 @@ After a revoke commits, new requests are denied; a request authorized before the
 
 ## What is not finished
 
-The application does not provide anonymous public links, admin access to private content, self-service password reset, account bans/deletion, self-service admin creation, MFA enforcement, antivirus, content disarm/sanitization, Deno unit tests, or automated Playwright E2E coverage. Real hosted Auth/Storage, backup retention, and end-to-end browser behavior require integration verification. On 2026-10-20, the linked project's notification objects/policies and migration ledger version were verified; a dry-run showed four other migrations pending. No migration DDL or app deployment was performed, and signed-in notification delivery remains unverified. The local backend test harness has historical pass reports, but current DB/API tests could not run because PostgreSQL was unavailable. See `evidence/requirements-matrix.md` and `docs/PROJECT_STATUS.md`.
+The application does not provide anonymous public links, admin access to private content, self-service password reset, self-service admin creation, MFA enforcement, antivirus, content disarm/sanitization, Deno unit tests, or automated Playwright E2E coverage. Ownership transfer for employee offboarding is not implemented; permanent removal is blocked while retained document/version/grant references exist. The new offboarding migration and Auth Admin flow require safe local and hosted integration validation before deployment; source checks do not prove hosted behavior. Real hosted Auth/Storage, backup retention, and end-to-end browser behavior require integration verification. On 2026-10-20, the linked project's notification objects/policies and migration ledger version were verified; a dry-run showed four other migrations pending. No migration DDL or app deployment was performed, and signed-in notification delivery remains unverified. See `evidence/requirements-matrix.md` and `docs/PROJECT_STATUS.md`.

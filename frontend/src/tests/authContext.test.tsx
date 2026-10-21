@@ -6,6 +6,7 @@ import type { Profile } from '../types'
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
+  signOut: vi.fn(),
   onAuthStateChange: vi.fn(),
   authListener: vi.fn(),
   getMyProfile: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock('../lib/supabase', () => ({
   supabase: {
     auth: {
       getSession: mocks.getSession,
+      signOut: mocks.signOut,
       onAuthStateChange: mocks.onAuthStateChange,
     },
   },
@@ -53,6 +55,7 @@ function SessionProbe({ snapshots }: { snapshots: { sessionId: string | null; pr
 describe('auth context account switching', () => {
   beforeEach(() => {
     mocks.getSession.mockReset()
+    mocks.signOut.mockReset()
     mocks.onAuthStateChange.mockReset()
     mocks.authListener.mockReset()
     mocks.getMyProfile.mockReset()
@@ -102,5 +105,34 @@ describe('auth context account switching', () => {
 
     await waitFor(() => expect(screen.getByText('Owner B private data')).toBeInTheDocument())
     expect(screen.queryByText('Owner A private data')).not.toBeInTheDocument()
+  })
+
+  it('signs out when the server reports that the current account is inactive', async () => {
+    const session = makeSession('departed-user')
+    mocks.getSession.mockResolvedValue({ data: { session } })
+    mocks.getMyProfile.mockResolvedValue({
+      id: 'departed-user',
+      email: 'departed@example.test',
+      display_name: 'Departed User',
+      role: 'viewer',
+      is_active: false,
+    })
+    mocks.signOut.mockResolvedValue({ error: null })
+
+    render(
+      <MemoryRouter initialEntries={['/private']}>
+        <AuthProvider>
+          <SessionProbe snapshots={[]} />
+          <Routes>
+            <Route element={<RequireAuth />}>
+              <Route path="/private" element={<PrivatePage />} />
+            </Route>
+            <Route path="/login" element={<p>Login page</p>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(mocks.signOut).toHaveBeenCalledTimes(1))
   })
 })

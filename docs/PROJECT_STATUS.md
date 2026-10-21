@@ -5,7 +5,7 @@ Last reviewed: **2026-10-21**. This is a local source and test report, not a pro
 ## Implemented in source
 
 - React/Vite/TypeScript application with Supabase Auth, document upload, search, sharing, history, and admin pages.
-- RLS-protected reads and nine Edge Functions backed by service-role-only `svc_*` operations.
+- RLS-protected reads and ten Edge Functions backed by service-role-only `svc_*` operations.
 - Private Storage bucket, upload validation, document hashing, access checks, and audit events. The newest local migration adds human-readable audit labels and post-verification preview/download success records; it is not deployed.
 - Notification feature in migration `20261020000500_user_notifications.sql`: recipient-only notices for direct/global shares and successful edits/replacements; top-right UI, unread/read state, Realtime plus polling fallback. The configured project's notification table, RPC, four triggers, RLS, grants, and Realtime publication were verified present on 2026-10-20, and the migration version is recorded.
 - The configured Supabase project initially returned `PGRST205` for `public.user_notifications`, explaining the reported panel error. On post-authorization inspection the schema objects were already present; this session did not execute the migration DDL. It recorded the verified migration version only. A follow-up anonymous REST request returned permission denied as expected; authenticated browser notification delivery has not been exercised.
@@ -13,6 +13,7 @@ Last reviewed: **2026-10-21**. This is a local source and test report, not a pro
 - Migrations 0100–0900, including signed-in global visibility, upload-time sharing, and editor historical downloads, plus recipient lookup updates 20261020000100 and 20261020000200 and audit update 20261020000300.
 - Migration `20261020000200_recipient_name_and_username_search.sql` restores bounded suggestions by display name/email username; neither recipient-search migration has been applied to a hosted project.
 - Demo provisioning now includes the required upload fields. Its network workflow has not been exercised in a disposable Supabase project.
+- Employee offboarding is implemented in local source: `profiles.is_active`, status-gated access helpers/RLS, recipient-grant rejection, service-only administrative lifecycle routines, a JWT-protected `admin-users` Edge Function, and Users & Roles controls. Deactivation retains documents and audit history; reactivation does not restore revoked grants. Removal requires prior deactivation and is blocked by owned documents, authored versions, or issued permission records. Migration/API behavior has not been run against a database or deployed.
 
 ## Fresh checks run on 2026-10-20
 
@@ -51,3 +52,14 @@ Check the target project and run the backend and live integration procedures bef
 - The deletion of `frontend/.env.example` surfaced during this audit; the owner requested preserving it. No real `.env` values were read or printed. Consequently, the frontend example template remains absent.
 - A follow-up against the owner-confirmed dedicated test project checked public Auth settings and anonymous denial for selected Data API, Storage metadata, and Edge Function routes. No migration, remote row/file data, push, or deployment was performed. Valid-user login, upload, preview/download, grants/revocation, authenticated admin actions, object-level Storage access, and notification delivery remain unverified.
 - A later read-only check of the supplied live Vercel login URL returned HTTP 200 with the configured security headers; an unauthenticated `document-share` preflight from that origin returned HTTP 204. This does not establish authenticated application behavior or current hosted migration state. See `evidence/security-test-results.md`.
+
+## Employee offboarding worktree verification — 2026-10-21
+
+- `npm --prefix frontend run build`: PASS; TypeScript and Vite completed. Existing >500 KiB chunk warning remains.
+- `npm --prefix frontend run lint`: PASS (`tsc --noEmit`).
+- `npm --prefix frontend test -- --pool=threads --maxWorkers=1`: PASS; 10 files, 38 passed, 1 existing todo.
+- `npm run typecheck:functions`: PASS; all 10 Edge Function entrypoints and shared files checked. `deno check --config supabase/functions/deno.json supabase/tests/harness/serve.ts`: PASS.
+- `npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop --skipLibCheck supabase/tests/api/offboarding.test.ts`: PASS (test source type-check only; does not execute the test).
+- A broader ad-hoc TypeScript command including the existing `security.test.ts` failed on its pre-existing `Uint8Array<ArrayBufferLike>`/`BlobPart` type mismatch at line 33. The isolated offboarding test source type-check passed.
+- `npm run test:backend:local`: BLOCKED before setup because Bash is not installed (`'bash' is not recognized`). The new migration and API integration tests have not run; no SQL migration was applied or deployed.
+- No hosted Supabase configuration/data, production Auth accounts, or deployment was changed. Stale-token/RLS, Auth Admin ban/delete, retry, and audit behavior remain test definitions pending an isolated backend run.

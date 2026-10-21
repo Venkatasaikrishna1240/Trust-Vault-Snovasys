@@ -24,6 +24,12 @@ The admin role does not create document access. Every signed-in profile, includi
 - Recipient lookup searches display names and the username part of email addresses (before `@`) case-insensitively after three characters; full email addresses also match. Results are capped at 20, omit the current user, and show the email so the uploader can select the correct account. The endpoint is rate-limited and audited; matching profile details are still disclosed to authenticated searchers.
 - Multiple selected upload recipients are limited to 20; upload-time document record and grants/global visibility are created in one SQL transaction.
 
+## Account status and employee offboarding
+
+Migration `20261021000100_employee_offboarding.sql` adds `profiles.is_active`, default true. Inactive profiles cannot resolve an application role or document access through the shared helpers; RLS also blocks protected reads and service functions reject inactive actors. An inactive user can select only their own profile row to discover status and sign out. New active grants to inactive recipients are rejected, and deactivation revokes current grants to that recipient. Reactivation does not recreate those grants.
+
+An administrator first deactivates the account, which commits the database block and grant revocations before the Edge Function applies a Supabase Auth ban. An already-issued access JWT is not assumed to expire immediately; the profile status is the database authorization boundary for subsequent reads and operations. The client periodically rechecks status for UX only. Permanent Auth deletion requires prior deactivation and is blocked while the profile owns documents, authored versions, or issued permission records. Documents and audit events are not automatically deleted or transferred. Account removal is staged/retryable and leaves an independent offboarding snapshot so audit identity outlives the profile. No ownership-transfer workflow is implemented; those retained dependencies require an approved retention/transfer resolution before removal.
+
 ## Global visibility and revocation
 
 `documents.is_global` defaults false. The owner may enable visibility to all signed-in accounts; this is not anonymous access. Global users receive `read`-equivalent access. Turning global off removes that general route but preserves explicitly named grants. Revoking a named grant does not exclude that user while the document is global.

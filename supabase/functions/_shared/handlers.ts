@@ -1,17 +1,29 @@
 // All Edge Function handlers authenticate and validate before service RPCs.
 // Denials are audited by SQL; delivery success is recorded after bytes verify.
 import {
-  apiError, assertOk, category, contentDisposition, Deps, jsonBody, json, readLimited, sha256Hex,
+  apiError, assertOk, AuthAdminError, category, contentDisposition, DbError, Deps, jsonBody, json, readLimited, sha256Hex,
   str, uuid, validateUpload, wrap, type Ctx,
 } from './core.ts';
 
-const rpc = (c: Ctx, fn: string, args: Record<string, unknown>) =>
-  c.deps.db.call(fn, { ...args, p_request: c.requestId });
+const rpc = async (c: Ctx, fn: string, args: Record<string, unknown>) => {
+  try {
+    return await c.deps.db.call(fn, { ...args, p_request: c.requestId });
+  } catch (error) {
+    if (error instanceof DbError && error.code === '23514' && error.message === 'recipient is inactive or unavailable') {
+      throw apiError('conflict', 'This account is inactive and cannot receive document access.');
+    }
+    throw error;
+  }
+};
 const recordEvent = async (c: Ctx, doc: string | null, action: string, outcome: string, details: Record<string, unknown>) => {
   assertOk(await rpc(c, 'svc_record_event', {
     p_actor: c.user.id, p_document: doc, p_action: action, p_outcome: outcome, p_details: details,
   }));
 };
+const recordOffboardingError = (c: Ctx, target: string, action: string, stage: string) =>
+  rpc(c, 'svc_admin_record_offboarding_error', {
+    p_actor: c.user.id, p_target: target, p_action: action, p_stage: stage,
+  }).then(assertOk);
 
 /** Parse multipart after enforcing the size cap while reading. */
 async function readMultipart(c: Ctx): Promise<FormData> {
@@ -227,4 +239,106 @@ export const setRoleHandler = (deps: Deps) => wrap(deps, ['POST'], async (c) => 
   if (b.role !== 'owner' && b.role !== 'viewer') throw apiError('invalid_request', 'role must be owner or viewer.');
   const r = assertOk(await rpc(c, 'svc_admin_set_role', { p_actor: c.user.id, p_target: uuid(b.user_id, 'user_id'), p_role: b.role }));
   return json({ user: r.user }, 200, c.requestId);
+});
+
+// ---------------- admin-users ----------------
+export const adminUsersHandler = (deps: Deps) => wrap(deps, ['GET', 'POST'], async (c) => {
+  if (c.req.method === 'GET') {
+    const r = assertOk(await rpc(c, 'svc_admin_list_accounts', { p_actor: c.user.id }));
+    return json({ users: r.users }, 200, c.requestId);
+  }
+
+  const b = await jsonBody(c.req);
+  const target = uuid(b.user_id, 'user_id');
+  if (b.action === 'deactivate') {
+    const result = assertOk(await rpc(c, 'svc_admin_deactivate_account', {
+      p_actor: c.user.id, p_target: target,
+    }));
+    try {
+      await c.deps.authAdmin.setBanned(target, true);
+    } catch {
+      await recordOffboardingError(c, target, 'admin.session_revoke', 'auth_ban');
+      throw apiError(
+        'unavailable',
+        'The account is disabled in TrustVault, but Supabase Auth suspension did not complete. Retry the action or contact the platform administrator.',
+      );
+    }
+    await recordEvent(c, null, 'admin.session_revoke', 'success', {
+      target_id: target,
+      method: 'supabase_auth_ban',
+    });
+    return json({ user_id: target, is_active: false, revoked_grants: result.revoked_grants }, 200, c.requestId);
+  }
+
+  if (b.action === 'reactivate') {
+    const prepared = assertOk(await rpc(c, 'svc_admin_prepare_reactivation', {
+      p_actor: c.user.id, p_target: target,
+    }));
+    if (prepared.already_active) return json({ user_id: target, is_active: true }, 200, c.requestId);
+
+    try {
+      await c.deps.authAdmin.setBanned(target, false);
+    } catch {
+      await recordOffboardingError(c, target, 'admin.session_restore', 'auth_unban');
+      throw apiError('unavailable', 'Supabase Auth could not restore this account. It remains disabled in TrustVault.');
+    }
+
+    try {
+      assertOk(await rpc(c, 'svc_admin_complete_reactivation', {
+        p_actor: c.user.id, p_target: target,
+      }));
+    } catch {
+      await recordOffboardingError(c, target, 'admin.account_reactivation', 'database_finalize');
+      throw apiError(
+        'unavailable',
+        'Supabase Auth is ready, but TrustVault could not finish reactivation. The account remains blocked in TrustVault; retry or contact the platform administrator.',
+      );
+    }
+    return json({ user_id: target, is_active: true }, 200, c.requestId);
+  }
+
+  if (b.action === 'remove') {
+    const prepared = await rpc(c, 'svc_admin_prepare_account_removal', {
+      p_actor: c.user.id, p_target: target,
+    });
+    if (!prepared?.ok) {
+      if (prepared?.code === 'retained_records') {
+        throw apiError(
+          'conflict',
+          `Permanent removal is blocked: ${prepared.owned_documents} owned document(s), ${prepared.created_versions} authored version(s), and ${prepared.issued_grants} issued permission record(s) still require retention or transfer review.`,
+        );
+      }
+      assertOk(prepared);
+    }
+    if (prepared.status === 'removed') {
+      return json({ user_id: target, status: 'removed', already_removed: true }, 200, c.requestId);
+    }
+
+    try {
+      await c.deps.authAdmin.deleteUser(target);
+    } catch (error) {
+      if (!(error instanceof AuthAdminError && error.code === 'user_not_found')) {
+        await recordOffboardingError(c, target, 'admin.account_removal', 'auth_delete');
+        throw apiError(
+          'unavailable',
+          'The account is inactive and removal is pending, but Supabase Auth did not complete deletion. Retry removal; the operation is safe to retry.',
+        );
+      }
+    }
+
+    try {
+      const completed = assertOk(await rpc(c, 'svc_admin_complete_account_removal', {
+        p_actor: c.user.id, p_target: target,
+      }));
+      return json({ user_id: target, status: completed.status }, 200, c.requestId);
+    } catch {
+      await recordOffboardingError(c, target, 'admin.account_removal', 'database_finalize');
+      throw apiError(
+        'unavailable',
+        'Supabase Auth deletion completed, but TrustVault could not record completion. Retry removal so the operation can finish its audit record.',
+      );
+    }
+  }
+
+  throw apiError('invalid_request', 'action must be deactivate, reactivate, or remove.');
 });

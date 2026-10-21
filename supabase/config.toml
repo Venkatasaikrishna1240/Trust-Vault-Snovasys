@@ -53,3 +53,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.admin-set-role]
 verify_jwt = true
+[functions.admin-users]
+verify_jwt = true

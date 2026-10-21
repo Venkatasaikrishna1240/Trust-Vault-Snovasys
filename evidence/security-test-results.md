@@ -145,3 +145,19 @@ This confirmed a CORS configuration blocker at the time of the diagnostic. The w
 For the documentation update, the supplied live login URL was requested without credentials. It returned HTTP 200 and included the configured Content-Security-Policy, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` headers.
 
 A read-only `OPTIONS` preflight was sent to the `document-share` Edge Function from `https://trust-vault-snovasys-19vk.vercel.app` using only public frontend request credentials and standard Supabase JS preflight headers. It returned HTTP 204 and `Access-Control-Allow-Origin: https://trust-vault-snovasys-19vk.vercel.app`. This establishes that this origin is currently accepted for that preflight endpoint. It does not identify when or how the allowlist changed, verify the stable `trust-vault-snovasys.vercel.app` alias, prove other function routes behave identically, or establish authenticated search, upload, sharing, audit, RLS, Storage, or notification behavior. No user token, account, document, setting, migration, or production data was used or changed.
+
+## Employee offboarding worktree checks — 2026-10-21
+
+| Check | Command | Result | Notes |
+|---|---|---|---|
+| Frontend production build | `npm --prefix frontend run build` | PASS | TypeScript and Vite succeeded. Existing minified chunk warning: 640.18 KiB exceeds 500 KiB. |
+| Frontend TypeScript check | `npm --prefix frontend run lint` | PASS | `tsc --noEmit`. |
+| Frontend unit tests | `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | PASS | 10 files, 38 passed, 1 existing todo. Includes inactive-account sign-out regression coverage. |
+| Edge Function type-check | `npm run typecheck:functions` | PASS | All 10 entrypoints and shared Edge Function files checked, including `admin-users`. |
+| Test harness type-check | `deno check --config supabase/functions/deno.json supabase/tests/harness/serve.ts` | PASS | Checks the injectable Auth Admin test harness code only. |
+| Offboarding API test source type-check | `npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop --skipLibCheck supabase/tests/api/offboarding.test.ts` | PASS | Static TypeScript check; does not execute API tests or SQL. |
+| Combined API test source type-check | Same command including `supabase/tests/api/security.test.ts` | BLOCKED BY EXISTING TEST TYPE ERROR | Existing `security.test.ts:33` passes `Uint8Array<ArrayBufferLike>` as a `BlobPart` under the installed TypeScript/DOM types. The isolated offboarding test type-check passes. No unrelated test code was changed. |
+| Backend DB/API integration tests | `npm run test:backend:local` | BLOCKED | Script could not start because Bash is not installed on this Windows environment (`'bash' is not recognized`). The offboarding migration and API tests did not execute. |
+| Hosted migration/Auth/deployment | Not run | NOT TESTED | No migration, Auth ban/delete, production account, data, secret, or deployment was changed. Actual Supabase Auth Admin semantics and hosted RLS/Storage remain unverified. |
+
+The offboarding test definitions in `supabase/tests/api/offboarding.test.ts` cover non-admin direct invocation, stale-token database/function denial, share revocation and non-restoration, prevention of new grants to inactive accounts, retention of owned documents, blocked removal, Auth-delete failure/retry, idempotent removal and retained audit history. The local harness uses a test-only SQL function to delete disposable test Auth users and a mock Auth Admin ban state; it is not a substitute for disposable real Supabase Auth integration. Ownership transfer is not implemented; removal remains blocked until retained document/version/grant references are resolved through an approved process.

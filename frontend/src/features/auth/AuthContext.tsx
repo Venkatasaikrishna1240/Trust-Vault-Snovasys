@@ -60,11 +60,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userId) return
     let active = true
     setLoading(true)
-    getMyProfile(userId)
-      .then((p) => { if (active) setProfile(p) })
-      .catch(() => { if (active) setProfile(null) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    const checkAccount = async (initial: boolean) => {
+      try {
+        const p = await getMyProfile(userId)
+        if (!active) return
+        if (!p || p.is_active === false) {
+          setProfile(null)
+          await supabase.auth.signOut({ scope: 'local' })
+          return
+        }
+        setProfile(p)
+      } catch {
+        if (active) {
+          setProfile(null)
+          await supabase.auth.signOut({ scope: 'local' })
+        }
+      } finally {
+        if (active && initial) setLoading(false)
+      }
+    }
+    void checkAccount(true)
+    const interval = window.setInterval(() => { void checkAccount(false) }, 15_000)
+    const onFocus = () => { void checkAccount(false) }
+    window.addEventListener('focus', onFocus)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [userId])
 
   const signIn = useCallback(async (email: string, password: string) => {

@@ -14,7 +14,7 @@ TrustVault is a React and Supabase document-management application for authentic
 - Metadata and inline preview for readers; current and historical attachment downloads for owners and editors.
 - Metadata changes and file replacement by owners/editors; deletion and sharing controls are owner-only.
 - Version history that records replacements and preserves metadata for prior versions.
-- Admin user-role management between `owner` and `viewer`, plus a read-only audit activity view.
+- Admin user-role management between `owner` and `viewer`, employee deactivation/reactivation, guarded permanent account removal, and a read-only audit activity view.
 - Private Supabase Storage and append-only, hash-linked audit events.
 - Recipient-scoped in-app notifications for sharing and successful document updates.
 
@@ -42,7 +42,7 @@ Registration uses Supabase Auth email/password signup; the database trigger crea
 
 **There is no organization-domain allowlist.** The registration form does not restrict email domains, and the profile-provisioning trigger does not enforce one either. Email confirmation verifies control of an inbox under the configured Supabase Auth flow; it does not prove that the person is an employee or student of a trusted organization. Local Supabase configuration explicitly disables email confirmations for local development. A read-only public Auth settings check against the owner-confirmed test project reported email auto-confirm disabled; no confirmation email was sent or completed during verification. Configure and verify production Auth confirmation and redirect settings separately.
 
-Session persistence and token refresh are enabled by the Supabase client. No app-provided password-reset, MFA enforcement, ban, or account-deletion workflow is implemented.
+Session persistence and token refresh are enabled by the Supabase client. Administrators can deactivate/reactivate employee accounts or permanently remove eligible accounts through the trusted offboarding function. Self-service password reset and MFA enforcement are not implemented.
 
 ## Roles and document access
 
@@ -58,7 +58,7 @@ Account roles are stored in `public.profiles.role` and are not taken from user m
 | Delete a document | No, unless also document owner | Yes | No | No |
 | Manage account roles / query full admin audit | Yes | No | No | No |
 
-Document-specific permissions are independent of account roles: an admin without a grant cannot read a private document, while a `viewer` may still own their own document. Access is checked against current database state; revocation blocks subsequent requests after it commits.
+Document-specific permissions are independent of account roles: an admin without a grant cannot read a private document, while a `viewer` may still own their own document. Inactive profiles are excluded from access helpers and protected RLS reads; revocation blocks subsequent requests after it commits.
 
 ## Document lifecycle, sharing, and versions
 
@@ -72,17 +72,18 @@ The browser never receives a Storage key or reusable signed URL. A preview neces
 
 ## Administration and audit
 
-The admin users page lists profiles and lets an admin change another non-admin profile between `owner` and `viewer`; it prevents changing the current admin's own role in the UI. The trusted server operation also authorizes the admin and rejects self-change, changes to another admin, and admin promotion. The admin audit page supports filtered, read-only event queries and optional hash-chain verification. Admin access does not confer document access.
+The admin users page lists account status and retained-record counts, lets an admin change another non-admin profile between `owner` and `viewer`, and provides employee deactivation/reactivation plus a separately confirmed permanent removal. Deactivation marks the profile inactive in the database before attempting a Supabase Auth ban, blocks protected database/function access even for an already-issued access token, and revokes active grants to that employee without deleting documents. Reactivation removes the Auth ban before restoring database access; revoked grants are not restored. Permanent removal is a staged Auth deletion, blocked until owned documents, authored versions, and issued permission references are resolved. It never deletes or silently transfers documents; audit history is retained. The trusted server operations authorize the admin, prohibit self-offboarding, and reject admin targets. The admin audit page supports filtered, read-only event queries and optional hash-chain verification. Admin access does not confer document access.
 
-Audit events cover supported operations such as document upload/read/preview/download/edit/replace/delete/purge, permission grant/revoke and recipient search, visibility changes, admin role changes/audit queries, denied operations, and selected storage/integrity failures. Events identify the verified actor where available, document/request IDs, action, outcome, timestamp, and constrained details. Preview/download success is written only after the server retrieves and verifies bytes and rechecks access; this records server preparation, not proof that a browser saved or displayed content. Some parsing and validation errors occur before audit logging.
+Audit events cover supported operations such as document upload/read/preview/download/edit/replace/delete/purge, permission grant/revoke and recipient search, visibility changes, admin role changes/account offboarding/audit queries, denied operations, and selected storage/integrity failures. Events identify the verified actor where available, document/request IDs, action, outcome, timestamp, and constrained details. Preview/download success is written only after the server retrieves and verifies bytes and rechecks access; this records server preparation, not proof that a browser saved or displayed content. Some parsing and validation errors occur before audit logging.
 
-Audit records are append-only for application roles and linked by SHA-256 hashes. This is tamper-evident against ordinary application-level modification, not tamper-proof against a database owner able to rewrite data and recompute the chain. No in-app account banning or account deletion is implemented.
+Audit records are append-only for application roles and linked by SHA-256 hashes. This is tamper-evident against ordinary application-level modification, not tamper-proof against a database owner able to rewrite data and recompute the chain.
 
 ## Security controls and limitations
 
 - Verified Supabase Auth identity at Edge Functions; profile role authority in the database.
 - RLS and explicit client column grants; browser clients have no direct document, version, permission, or audit writes.
 - Service-role-only SQL operations authorize and audit internally.
+- Inactive account status is checked by database access helpers/RLS and privileged service functions; Auth banning is an additional control, not the sole stale-token defense.
 - Private Storage bucket with restrictive denial for direct `anon`/`authenticated` object access; no signed URLs.
 - Uniform missing/inaccessible document responses, server-generated object keys, upload validation, and SHA-256/size checks.
 - Parameterized database calls and controlled SQL functions; current access is re-evaluated rather than cached.
@@ -107,11 +108,11 @@ Never put a service-role/secret key in frontend configuration or commit local `.
 
 ## Database and migrations
 
-Migrations live in `supabase/migrations/` and are applied in lexical order by the Supabase CLI. For a fresh local project, `npx supabase start` applies migrations and the local-only seed. To reset only that local database, use `npx supabase db reset`; it is destructive and must not be used against production.
+Migrations live in `supabase/migrations/` and are applied in lexical order by the Supabase CLI. The employee offboarding change is migration `20261021000100_employee_offboarding.sql`; deploy it before the `admin-users` Edge Function or updated frontend. For a fresh local project, `npx supabase start` applies migrations and the local-only seed. To reset only that local database, use `npx supabase db reset`; it is destructive and must not be used against production.
 
 For a hosted project, first verify the project reference and inspect `npx supabase migration list --linked` and `npx supabase db push --dry-run`. Review every pending migration and reconcile pre-existing schema before applying anything. Never edit an already-applied migration; use a new timestamped migration. See [deployment instructions](docs/deployment.md) for Auth, function secrets, first-admin provisioning, Storage, and smoke checks.
 
-The latest observed project checks are historical and do not establish the target deployment's current migration state. No migration or deployment is authorized or performed by this documentation update.
+The latest observed project checks are historical and do not establish the target deployment's current migration state. The offboarding migration and function have not been applied or deployed to the hosted project as part of this change.
 
 ## Development and tests
 
