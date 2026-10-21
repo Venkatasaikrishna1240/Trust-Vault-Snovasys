@@ -32,9 +32,9 @@ Hash chaining detects partial/ordinary edits but is not tamper-proof: a database
 
 ## Sessions, browser, CORS and CSRF
 
-Supabase JS persists a user session in browser storage by default. A stolen session can act with that user's permissions until invalidated/expired; MFA is not enforced by repository code. React escapes rendered text; preview response uses `nosniff`, CSP sandbox and no-store. Vercel headers set a CSP, `nosniff`, and `no-referrer`; the policy includes `style-src 'unsafe-inline'`.
+Supabase JS persists a user session in browser storage by default. A stolen session can act with that user's permissions until invalidated/expired; MFA is not enforced by repository code. React escapes rendered text. Edge preview/download responses set `nosniff`, CSP sandbox and no-store; the frontend fetches preview bytes and embeds a `blob:` URL, so those response headers are not proof of the final browser document's isolation. The Vercel CSP permits `blob:` in `frame-src` for that preview; `frame-ancestors 'none'` prevents the app from being embedded. Vercel also sets `nosniff` and `no-referrer`; the policy includes `style-src 'unsafe-inline'`. Browser-specific PDF preview isolation remains to be verified.
 
-API authorization uses an explicit bearer header rather than ambient cookies, so ordinary cookie-based CSRF does not apply. CORS source accepts configured non-local origins and HTTP localhost/loopback ports for development. The last hosted preflight test from port 5176 returned 204, but current source deployment was not confirmed. CORS is not authorization: production origins must be explicitly listed in `ALLOWED_ORIGINS`; do not set wildcard. Check hosted function versions after deploying source changes.
+API authorization uses an explicit bearer header rather than ambient cookies, so ordinary cookie-based CSRF does not apply. CORS source accepts configured non-local origins and HTTP localhost/loopback ports for development. On 2026-10-21, a hosted preflight from `http://127.0.0.1:4173` returned 204; this does not confirm authenticated function behavior or that hosted code matches current source. CORS is not authorization: production origins must be explicitly listed in `ALLOWED_ORIGINS`; do not set wildcard. Check hosted function versions after deploying source changes.
 
 ## Abuse controls and remaining risks
 

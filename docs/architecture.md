@@ -31,4 +31,4 @@ Never edit an applied migration on a shared database. Create a new timestamped m
 
 ## Deployment boundary
 
-Source code and a successful application deployment are distinct claims. Hosted database/function state must be queried from Supabase CLI/dashboard. Notification database objects and their migration ledger version were verified on the linked project; no app deployment or migration DDL was performed in that verification. Real authenticated notification delivery, Auth/Storage integration and full browser E2E remain separate validation tasks.
+Source code and a successful application deployment are distinct claims. Hosted database/function state must be queried from Supabase CLI/dashboard. Notification database objects and their migration ledger version were verified on the linked project on 2026-10-20; no app deployment or migration DDL was performed in that verification. This historical check does not establish current hosted state. Real authenticated notification delivery, Auth/Storage integration and full browser E2E remain separate validation tasks.

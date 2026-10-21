@@ -79,13 +79,13 @@ export default function DashboardPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300 mb-2">
               <Sparkles className="h-3 w-3 text-blue-400" aria-hidden="true" />
-              <span>The vault is locked. Your documents are safe.</span>
+              <span>Private storage. Access checked for each request.</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               Welcome back{profile?.display_name ? `, ${profile.display_name}` : ''}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-300">
-              All documents are encrypted with private storage policies and verified by audit logs.
+              Files are stored in a private bucket, authorized server-side, and checked with SHA-256 integrity hashes.
             </p>
           </div>
           {profile && (
@@ -112,7 +112,6 @@ export default function DashboardPage() {
           icon={FileText}
           label="Documents I own"
           value={String(stats.data?.owned_count ?? 0)}
-          subtext="encrypted"
           loading={stats.loading}
         />
         <Stat
@@ -126,7 +125,6 @@ export default function DashboardPage() {
           icon={HardDrive}
           label="Storage used"
           value={formatBytes(stats.data?.owned_bytes ?? 0)}
-          subtext="quota nominal"
           loading={stats.loading}
         />
       </div>
@@ -137,7 +135,7 @@ export default function DashboardPage() {
           <div className="flex-1">
             <Input
               label="Search documents"
-              placeholder="Search by title, original file name, or tag…"
+              placeholder="Search by title or original file name…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
