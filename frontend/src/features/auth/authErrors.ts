@@ -1,6 +1,23 @@
 export interface AuthFailure {
   code?: string
   status?: number
+  message?: string
+}
+
+export function signUpErrorMessage(error: AuthFailure): string {
+  if (error.message?.toLowerCase().includes('error sending confirmation email')) {
+    return 'TrustVault could not send the confirmation email. Your account may already have been created but remain unconfirmed. Do not keep retrying; contact the administrator to check Supabase Auth logs, SMTP provider logs, and your account status.'
+  }
+  if (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') {
+    return 'Too many confirmation emails were requested. Wait before trying again. If this continues, contact the project administrator.'
+  }
+  if (error.status === undefined || error.status === 0) {
+    return 'Could not reach the authentication service. Check your connection and try again.'
+  }
+  if (error.status >= 500) {
+    return 'Account creation could not be completed because the authentication service failed. Please try again later or contact the project administrator.'
+  }
+  return 'Account creation could not be completed. Check your details or contact the project administrator.'
 }
 
 export function signInErrorMessage(error: AuthFailure): string {

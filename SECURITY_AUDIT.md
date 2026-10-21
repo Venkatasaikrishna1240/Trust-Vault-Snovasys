@@ -26,7 +26,7 @@ The medium issue is fixed in the current working tree. The low-severity recipien
 
 ## Limits and residual risks
 
-- Source and tests do not prove hosted state. Public Auth settings, selected anonymous denial responses, deployed Edge Function routes, and one local-origin preflight were checked on the dedicated test project; authenticated policies, Storage object access, production-origin CORS, migration state, and deployment settings were not checked.
+- Source and tests do not prove hosted state. Public Auth settings and selected anonymous denials were checked on a dedicated test project. The supplied live Vercel login URL and security headers returned successfully, and a read-only preflight from that exact origin to one Edge Function returned HTTP 204. Authenticated policies, Storage object access, other function routes, hosted migration state, and Vercel dashboard settings were not checked.
 - A pattern scan of tracked working-tree files and Git-reachable blobs found no recognizable Supabase service-role/secret values. This does not cover untracked files, unreachable Git objects, or credentials that are encoded/split or do not match known formats.
 - The DB/API tests use a local harness; they do not emulate GoTrue or the actual Supabase Storage API. This environment lacked Bash, PostgreSQL, PostgREST, and Docker, so those tests were not run.
 - An authorized request already in progress at revocation may complete. A user can retain bytes already previewed, downloaded, copied, or captured.
@@ -42,7 +42,9 @@ Using only the configured public anon key and no user token, read-only requests 
 
 ### Production Vercel CORS incident — 2026-10-21
 
-The production screenshot showed a CORS/network failure from `https://trust-vault-snovasys-19vk.vercel.app`. Read-only preflights confirmed HTTP 403/no allow-origin from both that Vercel hostname and `https://trust-vault-snovasys.vercel.app`, but HTTP 204 for localhost development origins. The current deployed Edge Function allowlist therefore rejects the Vercel origins; recipient search, upload, and admin audit cannot reach their handlers from those sites. This is a confirmed configuration blocker, not evidence of a database authorization failure. The required `ALLOWED_ORIGINS` update must be made in Supabase Function secrets, preserving any other required origins. No production secret or function deployment was changed in this workspace. Passing CORS afterward will not by itself verify authenticated authorization or the underlying database operations.
+The production screenshot showed a CORS/network failure from `https://trust-vault-snovasys-19vk.vercel.app`. Read-only preflights at that time returned HTTP 403/no allow-origin from both that Vercel hostname and `https://trust-vault-snovasys.vercel.app`, but HTTP 204 for localhost development origins. This was a confirmed configuration blocker at the time, not evidence of a database authorization failure. No production secret or function deployment was changed in this workspace.
+
+A later read-only check for the documentation update received HTTP 204 and a matching allow-origin for the supplied `-19vk` origin on a `document-share` preflight. The stable alias was not rechecked. This supersedes the earlier statement that the `-19vk` origin is currently rejected, but does not prove the change's cause, the behavior of every function, or authenticated search/upload/admin operations. Authenticated authorization and the underlying database operations remain unverified.
 
 ## Seven-requirement review update — 2026-10-20
 

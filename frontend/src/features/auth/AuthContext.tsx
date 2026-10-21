@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { getMyProfile } from '../../services/data'
 import type { Profile } from '../../types'
-import { signInErrorMessage } from './authErrors'
+import { signInErrorMessage, signUpErrorMessage } from './authErrors'
 
 export interface AuthValue {
   session: Session | null
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } })
-    if (error) throw new Error(error.message || 'Sign-up failed.')
+    if (error) throw new Error(signUpErrorMessage(error))
     return { needsConfirmation: !data.session }
   }, [])
 
