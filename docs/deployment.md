@@ -20,8 +20,14 @@ Do not infer deployed behavior from local source. Verify the Supabase project re
 - Confirm the Vercel project root is `frontend`, the framework preset is Vite, the build command is `npm run build`, and the output directory is `dist`.
 - Confirm only `VITE_SUPABASE_URL` and the public `VITE_SUPABASE_ANON_KEY` are present in frontend environment settings; do not copy any service-role/secret value into Vercel.
 - Load `/login`, then directly load and refresh `/documents` and `/documents/<test-id>` to verify the SPA rewrite; unauthenticated requests should return to sign-in.
-- Inspect deployed response headers for the CSP, including `frame-src 'self' blob:` for PDF preview, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` from `frontend/vercel.json`.
+- Inspect deployed response headers for the CSP, including `frame-src 'self' blob:` for PDF preview and the Google Fonts stylesheet/font origins used by `frontend/index.html`, plus `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer` from `frontend/vercel.json`.
 - Sign in with isolated test identities and run the live authorization smoke checks in step 10. Do not use production user data for negative tests.
+
+## CORS troubleshooting
+
+Edge Function CORS uses exact non-local origins listed in the Supabase Function secret `ALLOWED_ORIGINS`; do not use `*` or assume that a Vercel deployment hostname is already allowed. Include the complete origin (scheme and hostname only, no route path), comma-separated, and preserve other origins still in use. Prefer a stable production Vercel/custom domain. If individual preview deployment URLs are used, each exact hostname needs an allowlist entry; avoid broad wildcard workarounds. A rejected preflight returns no `Access-Control-Allow-Origin` and the browser reports a network/CORS error before the function handler runs.
+
+On 2026-10-21, read-only preflights to the configured Supabase project returned HTTP 403 for both `https://trust-vault-snovasys.vercel.app` and `https://trust-vault-snovasys-19vk.vercel.app`, while localhost development origins returned HTTP 204. This explains recipient search, upload, and admin-audit calls being blocked from those Vercel origins. The `ALLOWED_ORIGINS` secret was not changed from this workspace. Add the intended Vercel origin(s) to the existing secret, then recheck the preflight and test each operation using an isolated account.
 
 ## Demo data cautions
 
