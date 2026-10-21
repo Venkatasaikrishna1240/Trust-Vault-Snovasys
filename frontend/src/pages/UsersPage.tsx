@@ -32,8 +32,12 @@ export default function UsersPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
   const [typedEmail, setTypedEmail] = useState('')
+  const [search, setSearch] = useState('')
   const selected = res.data?.find((account) => account.id === selectedId) ?? null
   const isAdmin = profile?.role === 'admin'
+  const matches = (res.data ?? []).filter((account) =>
+    `${account.display_name ?? ''} ${account.email}`.toLowerCase().includes(search.trim().toLowerCase()),
+  )
 
   const change = async (id: string, role: 'owner' | 'viewer') => {
     setBusyId(id)
@@ -111,7 +115,32 @@ export default function UsersPage() {
             quote="The user registry is currently deserted."
           />
         ) : (
-          <Table caption="Users">
+          <>
+          <div className="relative p-4 sm:max-w-md">
+            <Input
+              label="Search users"
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              autoComplete="off"
+            />
+            {search.trim() && matches.length > 0 && (
+              <div className="absolute inset-x-4 top-full z-10 max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg sm:right-auto sm:w-[calc(100%-2rem)]">
+                {matches.slice(0, 6).map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    className="block w-full rounded-md px-3 py-2 text-left hover:bg-slate-50"
+                    onClick={() => { setSearch(account.email); setSelectedId(account.id) }}
+                  >
+                    <span className="block text-sm font-medium text-slate-900">{account.display_name || account.email}</span>
+                    <span className="block text-xs text-slate-500">{account.email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {matches.length ? <Table caption="Users">
             <THead>
               <Th>User</Th>
               <Th>Role</Th>
@@ -122,7 +151,7 @@ export default function UsersPage() {
               <Th>Offboarding</Th>
             </THead>
             <TBody>
-              {res.data.map((account) => {
+              {matches.map((account) => {
                 const locked = account.role === 'admin' || account.id === profile?.id || !account.is_active
                 return (
                   <Tr key={account.id}>
@@ -197,7 +226,8 @@ export default function UsersPage() {
                 )
               })}
             </TBody>
-          </Table>
+          </Table> : <div className="p-6 text-sm text-slate-500">No users match your search.</div>}
+          </>
         )}
       </Card>
 
