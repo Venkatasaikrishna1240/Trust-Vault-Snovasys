@@ -2,6 +2,36 @@
 
 Do not infer deployed behavior from local source. Verify the Supabase project reference from `frontend/.env` and the dashboard before any database operation. On 2026-10-20 the linked project was checked as `twyfmmtzbcjwlkfwwijm`. A dry-run identified four pending migrations; Management API inspection confirmed notification objects were already present, and the verified migration version was recorded. The direct CLI migration list could not connect without the database password. Do not treat older migration/function status as current.
 
+## Supplied live deployment
+
+The live login URL supplied for this project is [https://trust-vault-snovasys-19vk.vercel.app/login](https://trust-vault-snovasys-19vk.vercel.app/login). A read-only check from this documentation update received HTTP 200 from that URL and observed the response policy configured in `frontend/vercel.json` (Content-Security-Policy, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`). A standard unauthenticated `OPTIONS` request to the `document-share` Edge Function from the exact origin `https://trust-vault-snovasys-19vk.vercel.app` returned HTTP 204 with that origin allowed. These checks do not verify sign-in, email delivery, upload, recipient search, database permissions, notifications, or any other authenticated workflow. The stable `trust-vault-snovasys.vercel.app` origin was not rechecked in this documentation update.
+
+The repository's Vercel deployment configuration expects project root `frontend`, Vite, build command `npm run build`, and output directory `dist`; `frontend/vercel.json` contains the SPA rewrite and response headers. Vercel dashboard settings, the GitHub repository connected to the Vercel project, and its production branch cannot be established from this checkout. The local branch is `security-hardening`, and the checkout lists `origin/main` and `origin/security-hardening`; this does not identify which branch Vercel deploys. Confirm the root, build settings, environment-variable scopes, connected repository, and production branch in the Vercel project settings before depending on automatic deployments.
+
+If the Vercel project is connected to GitHub, Vercel normally builds pushes to its configured production branch as production deployments and other branches as previews. Verify the actual project's Git settings rather than assuming that workflow or merging/pushing solely to trigger a deployment. The current live URL's association with a production or preview deployment is not verifiable from the repository.
+
+For the frontend, the variable names are `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; only the public URL/key belong in browser build configuration. Supabase Auth Site URL and allowed redirect URLs must include the intended deployed site and confirmation-return path as appropriate. The current hosted Auth confirmation and redirect settings were not checked here. The local `supabase/config.toml` explicitly disables email confirmations and is for local development only; do not use it as evidence of hosted settings.
+
+### Supabase Auth custom SMTP and confirmation email troubleshooting
+
+The browser message **“Error sending confirmation email”** is returned from the Supabase Auth signup request after the application-side name, email, and password validation. It indicates that Auth could not complete email delivery; it is not evidence that the user's password or the document backend is at fault. It does not reveal the precise SMTP failure. A failed send may leave an unconfirmed Auth user record, so inspect **Authentication → Users** before asking the person to register again.
+
+In the Supabase Dashboard, verify **Authentication → SMTP Settings**:
+
+- Custom SMTP is enabled and the SMTP host, port, username, and password exactly match the mail provider's SMTP settings. Use the provider's SMTP credentials, not an unrelated mailbox password or API credential unless the provider explicitly documents it as the SMTP password.
+- The configured sender/from address is authorized and verified by the provider. Complete the provider's domain verification and DNS requirements (typically SPF/DKIM; follow the provider's current instructions).
+- Check whether the provider account is in sandbox/test mode, has recipient restrictions, is suspended, or has hit its own sending limit. A custom provider has its own quotas and domain-reputation requirements; it does not make delivery unlimited.
+- Check **Authentication → Logs** around the failed signup for the Auth-side error and the mail provider's activity/events log for its SMTP response. Use those logs to distinguish rejected credentials, unverified sender/domain, relay/recipient restriction, quota, or a transient provider failure. Do not share SMTP passwords or full secret-bearing log output.
+- After correcting settings, test with one controlled address you own and confirm the Auth user status and inbox delivery before inviting users to retry. Keep email confirmation enabled unless the application's security policy explicitly says otherwise.
+
+Supabase's built-in SMTP is rate-limited and intended for development rather than production. A custom SMTP provider has its own rate limits; also review Supabase Auth email rate limits. See [Supabase's current custom SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp). A successful SMTP test is not proof that all production recipients will receive mail.
+
+#### If using Gmail SMTP
+
+For `smtp.gmail.com`, Google documents port **465 for SSL** or **587 for TLS**, with the complete Google email address as the SMTP username and an **app password** as the SMTP password. A normal Google account password is not the SMTP app password. App passwords require 2-Step Verification and may be unavailable for some managed Workspace accounts or security policies. Use a From address authorized for the sending account. Check the Supabase SMTP encryption/port selection matches the port; do not combine implicit SSL on 465 with STARTTLS settings intended for 587. See [Google's Gmail SMTP setup](https://knowledge.workspace.google.com/admin/gmail/send-email-from-a-printer-scanner-or-app?hl=en) and [Google app passwords](https://support.google.com/accounts/answer/185833).
+
+Gmail may impose sender/account limits and spam filtering, so it can be unsuitable for application authentication at production scale. For a public production app, prefer a transactional email provider with an authenticated sending domain and configured SPF/DKIM/DMARC. Never paste SMTP credentials or app passwords into chat or commit them to the repository.
+
 ## New/existing Supabase project
 
 1. Create/select the intended Supabase project and confirm its project ref. Securely install Supabase CLI and run `npx supabase login` (token is typed into terminal, never chat).
@@ -27,7 +57,7 @@ Do not infer deployed behavior from local source. Verify the Supabase project re
 
 Edge Function CORS uses exact non-local origins listed in the Supabase Function secret `ALLOWED_ORIGINS`; do not use `*` or assume that a Vercel deployment hostname is already allowed. Include the complete origin (scheme and hostname only, no route path), comma-separated, and preserve other origins still in use. Prefer a stable production Vercel/custom domain. If individual preview deployment URLs are used, each exact hostname needs an allowlist entry; avoid broad wildcard workarounds. A rejected preflight returns no `Access-Control-Allow-Origin` and the browser reports a network/CORS error before the function handler runs.
 
-On 2026-10-21, read-only preflights to the configured Supabase project returned HTTP 403 for both `https://trust-vault-snovasys.vercel.app` and `https://trust-vault-snovasys-19vk.vercel.app`, while localhost development origins returned HTTP 204. This explains recipient search, upload, and admin-audit calls being blocked from those Vercel origins. The `ALLOWED_ORIGINS` secret was not changed from this workspace. Add the intended Vercel origin(s) to the existing secret, then recheck the preflight and test each operation using an isolated account.
+An earlier read-only check recorded HTTP 403/no allow-origin for both `https://trust-vault-snovasys.vercel.app` and `https://trust-vault-snovasys-19vk.vercel.app`. In the later check above, the supplied `-19vk` origin returned HTTP 204 for one Edge Function preflight. This shows that the tested origin is currently accepted by that endpoint's CORS handling; it does not prove why the configuration changed, that every function is deployed identically, or that an authenticated operation succeeds. No Supabase secret was changed by this documentation update. If browser calls still fail, capture the exact origin, function, and preflight result, then test the operation with an isolated account. Recheck the stable origin separately if it is used.
 
 ## Demo data cautions
 

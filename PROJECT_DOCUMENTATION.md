@@ -259,16 +259,18 @@ Manual testing should use distinct disposable Admin, Owner A, Owner B, Editor, a
 
 ### Vercel
 
+- Live login URL supplied for this project: [https://trust-vault-snovasys-19vk.vercel.app/login](https://trust-vault-snovasys-19vk.vercel.app/login). A read-only check received HTTP 200 with the Vercel response headers configured in `frontend/vercel.json`; an unauthenticated `document-share` preflight from that exact origin returned HTTP 204. These checks do not verify authenticated application flows.
 - Root directory: `frontend`.
 - Framework preset: Vite.
 - Build command: `npm run build`.
 - Output directory: `dist`.
 - SPA rewrite and CSP/security headers: `frontend/vercel.json`; the CSP permits the Google Fonts hosts referenced by `frontend/index.html`.
 - Public frontend environment variable names: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Never use service-role or secret keys in frontend configuration.
+- Vercel dashboard configuration, connected Git repository, production branch, and hosted Supabase Auth redirect/confirmation settings are not verifiable from the repository. Confirm them in the corresponding project dashboards before treating them as deployment facts.
 
-Actual Vercel response headers and rendered PDF preview must be checked after deployment; local JSON/config validation does not prove deployed behavior. The previous production browser inspection reported Google Fonts blocked by the deployed CSP; the local policy has been updated, but requires a Vercel redeploy to take effect.
+The observed live response includes the configured security headers. The PDF preview flow and authenticated application behaviors still need live-user verification; local JSON/config validation and unauthenticated HTTP checks do not prove those flows.
 
-The 2026-10-21 production CORS diagnostic found that preflights from both `https://trust-vault-snovasys-19vk.vercel.app` and `https://trust-vault-snovasys.vercel.app` returned HTTP 403 with no allow-origin, while local development origins returned HTTP 204. Add the intended stable Vercel origin(s) to the existing Supabase Function secret `ALLOWED_ORIGINS` (comma-separated exact origins, no paths/wildcards, preserve other needed origins). The secret was not changed in this workspace. See [deployment troubleshooting](docs/deployment.md#cors-troubleshooting) and [live test evidence](evidence/security-test-results.md).
+An earlier CORS check found both Vercel origins rejected. A later check now observed HTTP 204 with the `-19vk` origin allowed for one Edge Function preflight; the stable hostname was not rechecked, and authenticated operations remain untested. See [deployment troubleshooting](docs/deployment.md#cors-troubleshooting) and [live test evidence](evidence/security-test-results.md).
 
 ### Supabase
 
@@ -307,4 +309,5 @@ Do not deploy, push, or apply production migrations without explicit owner appro
 - [Threat model](THREATS.md) and [security audit](SECURITY_AUDIT.md).
 - [Testing](docs/testing.md), [security testing](docs/security-testing.md), and [evidence](evidence/README.md).
 - [Deployment](docs/deployment.md) and [local development](docs/local-development.md).
+- [User manual](USER_MANUAL.md) — end-user and administrator workflows.
 - [Project status](docs/PROJECT_STATUS.md), [requirements evidence](docs/requirements-evidence.md), and [challenge write-up](PROJECT_WRITEUP.md).

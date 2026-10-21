@@ -1,8 +1,10 @@
 # TrustVault
 
+[Open the live TrustVault application](https://trust-vault-snovasys-19vk.vercel.app/login)
+
 TrustVault is a React and Supabase document-management application for authenticated users to store, version, preview, and selectively share documents. Document permissions are enforced by PostgreSQL and Supabase Edge Functions; hiding a control in the browser is not an authorization boundary.
 
-> **Status:** This repository contains the application and its security-focused tests, but it is not a security certification. Authenticated hosted workflows, current hosted migration state, and deployed Vercel behavior still require verification. See [test evidence](evidence/security-test-results.md).
+> **Status:** This repository contains the deployed application and its security-focused tests, but it is not a security certification. The supplied live login URL and response headers were checked, as was an unauthenticated CORS preflight from that origin. Authenticated hosted workflows and current hosted migration state remain unverified. See [test evidence](evidence/security-test-results.md).
 
 ## Features
 
@@ -139,8 +141,11 @@ Configure the Vercel project root as `frontend`, framework as Vite, build comman
 
 Configure Supabase Auth Site URL and production redirect URLs for the deployed frontend, explicitly decide and verify email confirmation policy, set exact production origins in the Edge Function `ALLOWED_ORIGINS`, deploy reviewed migrations and functions, and provision the first admin through a trusted operator process. Then run the role-based and post-deployment checks from [deployment guide](docs/deployment.md). Do not infer successful production behavior from source or local test results.
 
+The live login URL supplied for this deployment is [trust-vault-snovasys-19vk.vercel.app/login](https://trust-vault-snovasys-19vk.vercel.app/login). The repository does not establish the Vercel dashboard's connected Git repository or production branch; verify those in Vercel before relying on automatic deployments.
+
 ## Documentation
 
+- [User manual](USER_MANUAL.md)
 - [Complete project documentation](PROJECT_DOCUMENTATION.md)
 - [API reference](API.md)
 - [Permission model](docs/permission-model.md)
@@ -157,4 +162,4 @@ Configure Supabase Auth Site URL and production redirect URLs for the deployed f
 
 ## Project information
 
-TrustVault is an application project prepared for the Snovasys security challenge. The detailed implementation description and outstanding limitations are in [PROJECT_WRITEUP.md](PROJECT_WRITEUP.md). No live demo or deployment URL is asserted here.
+TrustVault is an application project prepared for the Snovasys security challenge. The detailed implementation description and outstanding limitations are in [PROJECT_WRITEUP.md](PROJECT_WRITEUP.md).
