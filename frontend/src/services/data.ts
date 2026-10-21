@@ -44,16 +44,9 @@ export async function getRecentActivity(): Promise<AuditEvent[]> {
   return (data ?? []) as AuditEvent[]
 }
 
-export async function listProfiles(): Promise<Profile[]> {
-  const { data, error } = await supabase
-    .from('profiles').select('id,email,display_name,role,created_at').order('created_at')
-  fail(error)
-  return (data ?? []) as Profile[]
-}
-
 export async function getMyProfile(id: string): Promise<Profile | null> {
   const { data, error } = await supabase
-    .from('profiles').select('id,email,display_name,role').eq('id', id).maybeSingle()
+    .from('profiles').select('id,email,display_name,role,is_active').eq('id', id).maybeSingle()
   fail(error)
   return (data as Profile | null) ?? null
 }

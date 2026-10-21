@@ -56,7 +56,7 @@ beforeAll(async () => {
 
 describe('authentication', () => {
   it('rejects missing, malformed, forged and unknown-user tokens on every function', async () => {
-    const names = ['document-upload', 'document-download', 'document-preview', 'document-get', 'document-edit', 'document-delete', 'document-share', 'admin-audit-query', 'admin-set-role'];
+    const names = ['document-upload', 'document-download', 'document-preview', 'document-get', 'document-edit', 'document-delete', 'document-share', 'admin-audit-query', 'admin-set-role', 'admin-users'];
     const forged = (await mint(randomUUID())).replace(/.$/, 'A'); // broken signature
     for (const n of names) {
       for (const h of [undefined, 'Bearer', 'Bearer abc.def.ghi', `Bearer ${forged}`, 'Basic Zm9v']) {

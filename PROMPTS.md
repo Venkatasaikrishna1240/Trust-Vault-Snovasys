@@ -46,6 +46,14 @@ These entries use the requested format: dated ask, tool output, concrete defect/
 - **Verification:** Reviewed the committed documentation and Git history. Historical tests were not rerun as part of this correction.
 - **Commit:** [e32d602 — Updated Documentation data](https://github.com/VenkatasaiKrishna1240/Trust-Vault-Snovasys/commit/e32d602bdf6e910e02e29a3e5d4dafdf869ad8e7); the provenance correction is also visible in [e96337b](https://github.com/VenkatasaiKrishna1240/Trust-Vault-Snovasys/commit/e96337b59cfd977ad60f18e7445a01256aa3364c).
 
+### 6. 2026-10-21 — Employee offboarding and account removal
+- **Asked:** Inspect the existing TrustVault security model and implement administrator-led account deactivation, reactivation, and guarded permanent removal without deleting or silently transferring retained documents.
+- **Tool produced:** An additive account-status/offboarding migration, a JWT-protected `admin-users` Edge Function with server-side Auth Admin operations, Users & Roles status/details/actions, auth status refresh, API/frontend regression-test definitions, and updated security/deployment documentation.
+- **Wrong/risky:** Review found that an account profile may have a null display name, so it could not be copied into a required removal snapshot; a repeated pending removal was also initially labeled like completed removal. The design also must not assume that an Auth ban immediately invalidates every issued access token.
+- **Did instead:** Snapshot email as a fallback display label; distinguish retry audit events; make database account status and RLS/service authorization the stale-token boundary; block deletion when retained document/version/grant references exist; keep Auth deletion staged and retryable.
+- **Verification:** `npm --prefix frontend run build` and `npm --prefix frontend run lint` passed; frontend tests passed (10 files, 38 passed, 1 existing todo); `npm run typecheck:functions` and Deno check of `supabase/tests/harness/serve.ts` passed; targeted TypeScript check of `supabase/tests/api/offboarding.test.ts` passed. The production build reports the existing >500 KiB chunk warning. `npm run test:backend:local` could not start because Bash is not installed in this Windows environment; the SQL migration and API tests were not executed. No hosted migration, production Auth operation, commit, or deployment was performed.
+- **Commit:** None; changes remain uncommitted in the worktree.
+
 ### 1. 2026-10-18 — Master build prompt (Claude)
 Prompt: the full TrustVault brief. AI produced: schema, RLS, svc_* functions, Edge Functions, tests.
 Risk found (self-review before first run): first draft let `authenticated` execute `app.access_level(actor, doc)` / `actor_role(actor)` — a client could ask "what can user X do?". Fix: revoked from all API roles; RLS uses caller-bound `app.my_access_level`. Verified: rls.test "clients cannot call internal app.* helpers" passes.

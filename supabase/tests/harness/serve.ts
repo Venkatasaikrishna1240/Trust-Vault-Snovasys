@@ -4,7 +4,7 @@
 //  - Storage is an in-memory map instead of the Storage API
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import * as H from '../../functions/_shared/handlers.ts';
-import { DbError, type Deps, type ObjectStore } from '../../functions/_shared/core.ts';
+import { AuthAdminError, DbError, type Deps, type ObjectStore } from '../../functions/_shared/core.ts';
 
 const SECRET = Deno.env.get('TV_JWT_SECRET')!;
 const PGRST = Deno.env.get('TV_POSTGREST_URL') ?? 'http://127.0.0.1:54330';
@@ -23,6 +23,8 @@ async function mint(claims: Record<string, unknown>): Promise<string> {
 const serviceJwt = await mint({ role: 'service_role' });
 
 const objects = new Map<string, Uint8Array>();
+const bannedUsers = new Set<string>();
+const deleteFailures = new Set<string>();
 const store: ObjectStore = {
   put: (k, b) => { if (objects.has(k)) throw new Error('exists'); objects.set(k, b); return Promise.resolve(); },
   get: (k) => Promise.resolve(objects.get(k) ?? null),
@@ -40,18 +42,40 @@ const deps: Deps = {
     if (c.exp < Date.now() / 1000 || !c.sub || c.role !== 'authenticated') return null;
     return { id: c.sub };
   },
+  authAdmin: {
+    async setBanned(userId, banned) {
+      if (banned) bannedUsers.add(userId);
+      else bannedUsers.delete(userId);
+    },
+    async deleteUser(userId) {
+      if (deleteFailures.delete(userId)) throw new AuthAdminError('test_auth_delete_failure');
+      const { data, error } = await admin.rpc('harness_delete_auth_user', { p_user: userId });
+      if (error) throw new AuthAdminError(error.code ?? 'auth_admin_failed');
+      if (!data) throw new AuthAdminError('user_not_found');
+    },
+  },
   db: { async call(fn, args) { const { data, error } = await admin.rpc(fn, args); if (error) throw new DbError(error.code ?? '', error.message); return data; } },
   store,
 };
 const routes: Record<string, (r: Request) => Promise<Response>> = {
   'document-upload': H.uploadHandler(deps), 'document-download': H.downloadHandler(deps), 'document-preview': H.previewHandler(deps), 'document-get': H.getHandler(deps),
   'document-edit': H.editHandler(deps), 'document-delete': H.deleteHandler(deps), 'document-share': H.shareHandler(deps),
-  'admin-audit-query': H.auditQueryHandler(deps), 'admin-set-role': H.setRoleHandler(deps),
+  'admin-audit-query': H.auditQueryHandler(deps), 'admin-set-role': H.setRoleHandler(deps), 'admin-users': H.adminUsersHandler(deps),
 };
 Deno.serve({ port: PORT, hostname: '127.0.0.1' }, async (req) => {
   const u = new URL(req.url);
   if (u.pathname === '/__harness/mint') return new Response(await mint(await req.json()));
   if (u.pathname === '/__harness/objects') return Response.json([...objects.keys()]);
+  if (u.pathname === '/__harness/auth-state' && req.method === 'GET') {
+    const userId = u.searchParams.get('user_id');
+    return Response.json({ banned: userId !== null && bannedUsers.has(userId) });
+  }
+  if (u.pathname === '/__harness/fail-next-auth-delete' && req.method === 'POST') {
+    const body = await req.json();
+    if (typeof body.user_id !== 'string') return new Response('invalid user id', { status: 400 });
+    deleteFailures.add(body.user_id);
+    return Response.json({ ok: true });
+  }
   if (u.pathname.startsWith('/rest/v1/')) {
     const target = PGRST + u.pathname.slice('/rest/v1'.length) + u.search;
     return fetch(target, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body, duplex: 'half' } as RequestInit);

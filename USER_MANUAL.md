@@ -123,7 +123,17 @@ Accounts with the admin role see **Users & Roles** and **Audit log** in navigati
 
 ### Users & Roles
 
-The Users page lists account names, emails, roles, and join dates. An administrator can change another non-admin account between **Viewer** and **Owner**. The current administrator and administrator accounts are not changeable from this screen. The application does not provide user banning, account deletion, or admin promotion through this page.
+The Users page lists employee names, emails, roles, account status, owned-document counts, and join dates. An administrator can change another non-admin active account between **Viewer** and **Owner**. Admin accounts and the current administrator are not available for role changes or offboarding.
+
+Select **Manage** to inspect the employee's email, role, status, owned documents, authored versions, and issued permission records.
+
+- **Deactivate account** is the preferred offboarding action. Confirm the prompt to disable the database profile, suspend Supabase Auth, and revoke active shares to the employee. Documents and audit history remain. A session already open may not disappear instantly, but database access checks deny protected operations for inactive accounts. If the Auth suspension fails after database deactivation, the page reports that the account is still blocked in TrustVault and the administrator can retry.
+- **Reactivate account** restores sign-in after the administrator confirms. It does not restore grants revoked during deactivation; document owners must deliberately share again.
+- **Permanently remove account** is separate and irreversible. The employee must first be inactive and the administrator must type the employee's email into the final confirmation. Documents, authored versions, or issued permission history block removal. TrustVault does not delete or transfer those records automatically; do not remove their records manually. Resolve ownership and retention through an approved administrator process, or leave the account deactivated while those dependencies remain.
+
+Removal is performed by the server using Supabase Auth administration. If a multi-step operation partially fails, the page reports that retry is available; use **Manage** again and retry the same operation. Do not treat a pending removal message as proof that deletion completed. Account status and all administrative actions are enforced server-side, not only by these controls.
+
+Admin promotion is not available in this page; it requires a separate trusted operator process.
 
 ### Audit log
 

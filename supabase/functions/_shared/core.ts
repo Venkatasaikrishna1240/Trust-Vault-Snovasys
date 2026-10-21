@@ -31,12 +31,19 @@ export function loadConfig(get: (k: string) => string | undefined = (k) => Deno.
 export interface AuthUser { id: string; email?: string }
 export type Authenticator = (token: string) => Promise<AuthUser | null>;
 export interface ServiceDb { call(fn: string, args: Record<string, unknown>): Promise<any> }
+export class AuthAdminError extends Error {
+  constructor(public code: string) { super('Auth administrative operation failed'); }
+}
+export interface AuthAdmin {
+  setBanned(userId: string, banned: boolean): Promise<void>;
+  deleteUser(userId: string): Promise<void>;
+}
 export interface ObjectStore {
   put(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
   get(key: string): Promise<Uint8Array | null>;
   remove(keys: string[]): Promise<string[]>; // returns keys that FAILED to delete
 }
-export interface Deps { config: Config; authenticate: Authenticator; db: ServiceDb; store: ObjectStore }
+export interface Deps { config: Config; authenticate: Authenticator; authAdmin: AuthAdmin; db: ServiceDb; store: ObjectStore }
 
 export function prodDeps(): Deps {
   const config = loadConfig();
@@ -49,6 +56,18 @@ export function prodDeps(): Deps {
     authenticate: async (token) => {
       const { data, error } = await anon.auth.getUser(token);
       return error || !data.user ? null : { id: data.user.id, email: data.user.email ?? undefined };
+    },
+    authAdmin: {
+      async setBanned(userId, banned) {
+        const { error } = await admin.auth.admin.updateUserById(userId, {
+          ban_duration: banned ? '876000h' : 'none',
+        });
+        if (error) throw new AuthAdminError(error.code ?? 'auth_admin_failed');
+      },
+      async deleteUser(userId) {
+        const { error } = await admin.auth.admin.deleteUser(userId);
+        if (error) throw new AuthAdminError(error.code ?? 'auth_admin_failed');
+      },
     },
     db: {
       async call(fn, args) {

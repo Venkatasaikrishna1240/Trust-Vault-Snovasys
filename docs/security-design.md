@@ -10,6 +10,8 @@ The browser is untrusted. Each Edge Function is configured `verify_jwt=true`; `s
 
 Migration 0400 revokes broad public/anon/authenticated privileges, enables RLS on public application tables, grants explicit read columns, and provides no client write policies for documents, versions, permissions, or audit events. `svc_*` are SECURITY DEFINER operations restricted to service_role; the RLS tests enumerate that exposure. Profile users may update their own display name only.
 
+Migration `20261021000100_employee_offboarding.sql` adds `profiles.is_active` and updates the role/access helpers so inactive profiles have neither an account role nor document access. Protected RLS read policies also explicitly require an active caller; the only exception is selecting one's own profile so the application can detect deactivation and sign out. Client profile updates still cannot modify role, email, ID, or status. A permission trigger rejects any newly active grant to an inactive or missing recipient but permits revocation.
+
 ## File and Storage boundary
 
 Migration 0600 configures `documents` as private (10 MiB, PDF/PNG/JPEG) and applies a restrictive client-deny policy on `storage.objects`. The browser never calls Storage directly and no signed URLs are issued. Edge Functions authorize and audit before byte access. Keys are server-generated as `<owner UUID>/<document UUID>/<random UUID>`; DB enforces the convention and client SELECT grants omit `storage_key`.
@@ -21,6 +23,10 @@ Uploads are size-limited while reading the request, then checked by content sign
 Owner controls named grants, visibility, revocation and deletion. Edit grants allow metadata/file replacement and, after migration 0900, current and historical downloads. Read grants allow metadata and current inline preview only. Global visibility is optional and only applies to signed-in profiles. Admin is not a content role.
 
 No reusable URL is issued. A committed revoke blocks new authorized requests. Because a read/download may have passed its authorization decision before revocation commits, that in-flight response may still finish. Already delivered data cannot be recalled. Delete soft-tombstones and revokes access, then the function attempts removal of stored versions; purge may be incomplete and provider backups are not managed.
+
+Deactivation is enforced in the database before an Auth ban is attempted: the profile becomes inactive and active grants to that recipient are revoked in one audited transaction. The Auth Admin ban additionally prevents future sign-ins/refreshes when supported, but it is not treated as immediate invalidation of every already-issued access token. Old tokens may still reach an Edge Function if Auth accepts them; service SQL authorization and RLS deny protected access from the inactive profile. The frontend rechecks profile status on focus and every 15 seconds, which improves UX but is not the security boundary. If the Auth ban fails, the database block remains and the operation reports a retryable partial outcome.
+
+Reactivation removes the Auth ban before making the profile active; if the database finalization fails, the account remains blocked by RLS. Grants revoked at deactivation are not restored. Permanent removal is a staged Auth deletion after service-side admin, self/admin-target, inactive-status, and retained-reference checks. It is blocked for owned documents, authored versions, and issued grants; no records are silently transferred or deleted. A retry can complete a pending operation after a partial Auth/database failure. A profile-free `account_offboarding` snapshot and audit events are retained after successful removal. This source path has not been applied to hosted Supabase, and actual Auth Admin ban/deletion behavior remains to be validated with disposable identities.
 
 ## Audit integrity and fail-closed behavior
 

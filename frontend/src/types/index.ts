@@ -16,7 +16,16 @@ export interface Profile {
   email: string
   display_name: string | null
   role: Role
+  is_active?: boolean
   created_at?: string
+}
+
+export interface AdminAccount extends Profile {
+  is_active: boolean
+  owned_documents: number
+  active_incoming_grants: number
+  created_versions: number
+  issued_grants: number
 }
 
 export interface DocumentRecord {
