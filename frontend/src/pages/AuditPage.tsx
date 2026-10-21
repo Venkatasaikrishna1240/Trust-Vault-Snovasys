@@ -84,7 +84,7 @@ export default function AuditPage() {
     <>
       <PageHeader
         title="Audit log"
-        description="Every access, change and denied attempt, in order."
+        description="Recorded access, change, and denial events in audit order."
         actions={
           <Button variant="secondary" onClick={verify} loading={verifying}>
             <ShieldCheck className="h-4 w-4 text-blue-600" aria-hidden="true" />

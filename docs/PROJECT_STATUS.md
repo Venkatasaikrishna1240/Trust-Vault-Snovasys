@@ -1,6 +1,6 @@
 # Project status and verification ledger
 
-Last reviewed: **2026-10-20**. This is a local source and test report, not a production security certification. Fresh command results are in `evidence/security-test-results.md`.
+Last reviewed: **2026-10-21**. This is a local source and test report, not a production security certification. Fresh command results are in `evidence/security-test-results.md`.
 
 ## Implemented in source
 
@@ -39,3 +39,14 @@ Last reviewed: **2026-10-20**. This is a local source and test report, not a pro
 - Historical AI prompt summaries are in Git history, but original transcripts and independent proof of their reported tests are not.
 
 Check the target project and run the backend and live integration procedures before claiming those behaviors are verified. Do not use production data for tests.
+
+## Pre-deployment verification — 2026-10-21
+
+- Production frontend build, frontend TypeScript check, and Edge Function Deno type-check passed; the production bundle still triggers Vite's >500 KiB chunk warning.
+- `npm audit --prefix frontend --audit-level=high` and `npm audit --audit-level=high` reported zero known vulnerabilities.
+- First full frontend test run: one permission UI test timed out, 29 passed, 1 existing todo. A subsequent full rerun passed: 9 files, 30 passed, 1 existing todo. The isolated permission suite also passed 4 tests with 1 existing todo.
+- DB tests: all 166 cases skipped during setup because `127.0.0.1:54329` refused the connection. API tests: all 26 cases skipped for the same reason.
+- Local browser smoke check, with a dummy Supabase URL/key: login loaded; empty signup displayed required-field errors; `/documents/new` redirected unauthenticated users to `/login`; viewport width 390px had no horizontal overflow. No credentials were submitted.
+- UI copy that overstated AES encryption, complete audit coverage, tag search, and quota status was corrected. Vercel's CSP now permits same-origin/blob PDF preview frames; build/output/rewrite/header steps and environment-template setup instructions were clarified. Deployed headers/rendering remain unverified.
+- The deletion of `frontend/.env.example` surfaced during this audit; the owner requested preserving it. No real `.env` values were read or printed. Consequently, the frontend example template remains absent.
+- A follow-up against the owner-confirmed dedicated test project checked public Auth settings and anonymous denial for selected Data API, Storage metadata, and Edge Function routes. No migration, remote row/file data, push, or deployment was performed. Valid-user login, upload, preview/download, grants/revocation, authenticated admin actions, object-level Storage access, and notification delivery remain unverified.

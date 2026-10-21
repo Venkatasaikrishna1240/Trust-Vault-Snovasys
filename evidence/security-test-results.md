@@ -71,10 +71,49 @@ During test development, the first account-switch assertion queried an accessibl
 | `npm run test:backend:local` | NOT RUN | The disposable backend harness prerequisites remain unavailable; direct DB/API attempts above confirm no PostgreSQL server was listening. |
 | `npm run test:mutation` | NOT RUN | Same missing backend harness prerequisites. |
 | Single-worker invocation with unsupported `--minWorkers=1` option | FAILED | Vitest rejected the option in that invocation; rerun using the supported `--pool=threads --maxWorkers=1` command above passed. The failed command output is preserved in `test-logs/frontend-tests-invalid-option.log`. |
-| Direct Supabase Auth/API/Storage authorization | NOT TESTED | No disposable Supabase environment or test credentials were used. No hosted project was accessed. |
+| Direct Supabase Auth/API/Storage authorization | PARTIAL | Follow-up read-only anonymous checks against the owner-confirmed dedicated test project are recorded below. No valid test-user session was available. |
 | Manual UI login, grant, revoke, account switch, and direct ID manipulation | NOT TESTED | No browser session/test identities were exercised during this session. Procedures are in `manual-test-cases.md`. |
 | Hosted migration/function/deployment verification | PARTIAL | On 2026-10-20 the linked project's notification objects and migration ledger were inspected; four other migrations appeared pending in a dry-run. No application deployment or migration DDL was performed. The direct migration list could not connect without the database password. |
 
 ## Interpretation
 
 The latest results show that the frontend builds and its suite passes when run with one worker, and the Edge Function sources pass the configured Deno type-check. The new audit event semantics and SQL migration have not been exercised against PostgreSQL; the DB/API cases are definitions only. The results do **not** establish hosted authentication, RLS, Storage denial, revocation, audit integrity or actual browser receipt/display end-to-end.
+
+## Pre-deployment audit — 2026-10-21
+
+| Check | Command / activity | Result | Notes |
+|---|---|---|---|
+| Frontend production build | `npm --prefix frontend run build` | PASS | TypeScript and Vite succeeded. Minified JS chunk was 630.56 kB, above Vite's 500 kB warning threshold. |
+| Frontend type-check | `npm --prefix frontend run lint` | PASS | `tsc --noEmit`. |
+| Frontend tests, first run | `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | FLAKY | 8 files passed; one permission UI test timed out at 5 seconds (29 passed, 1 existing todo). |
+| Frontend tests, full rerun | `npm --prefix frontend test -- --pool=threads --maxWorkers=1` | PASS | 9 files passed; 30 passed, 1 existing todo. |
+| Focused permission UI rerun | `npm --prefix frontend test -- src/tests/permissions.test.tsx --pool=threads --maxWorkers=1 --testTimeout=15000` | PASS | 1 file; 4 passed, 1 existing todo. |
+| Edge Function type-check | `npm run typecheck:functions` | PASS | Deno checked the configured Edge Function entrypoints and shared modules. |
+| Frontend dependency audit | `npm audit --prefix frontend --audit-level=high` | PASS | Reported zero known vulnerabilities. |
+| Root dependency audit | `npm audit --audit-level=high` | PASS | Reported zero known vulnerabilities. These are point-in-time registry results. |
+| Database security tests | `npm run test:db` | BLOCKED | Setup failed with `ECONNREFUSED 127.0.0.1:54329`; all 166 tests skipped before test bodies ran. |
+| Edge API security tests | `npm run test:api` | BLOCKED | Setup failed with `ECONNREFUSED 127.0.0.1:54329`; all 26 tests skipped before test bodies ran. |
+| Vercel configuration | PowerShell JSON parse and policy assertion | PASS | JSON parsed; SPA rewrite and `frame-src 'self' blob:` are present. Live headers/rendering still require deployment verification. |
+| Local unauthenticated browser smoke | Vite served from `frontend` with `VITE_SUPABASE_URL=http://127.0.0.1:9` and a non-credential placeholder key | PARTIAL | Login loaded; signup empty-submit validation rendered required-field errors; direct `/documents/new` navigation redirected to `/login`; a 390px viewport measurement returned no horizontal overflow. No credentials were submitted and no Supabase service was contacted. |
+| Worktree credential-shaped scan | Tracked `HEAD` and worktree files scanned by `git grep`; only filenames/no values would be emitted | PASS | No matching credential-shaped values. Ignored local `.env` files were not read or scanned. |
+| Hosted Supabase/Vercel behavior | Follow-up checks below | PARTIAL | Limited anonymous Auth/API/Storage and Edge Function checks were run against the owner-confirmed dedicated test project. Authenticated workflows, deployed Vercel behavior, migrations, and account operations remain untested. |
+
+The copy review removed unsupported frontend claims of application-provided AES-256 encryption, complete audit coverage, tag search, and quota status. Vercel CSP was updated to allow the `blob:` preview iframe; deployed headers and rendering still require verification. Provider-managed encryption-at-rest settings were not independently inspected. The observed deletion of `frontend/.env.example` was preserved at the owner's direction; local setup docs now describe manual creation of `frontend/.env`. No migration, remote data, push, or deployment was performed.
+
+## Dedicated test-project authorization checks — 2026-10-21
+
+The owner confirmed the configured hosted Supabase project is dedicated to testing and authorized checks against it. Requests used only the frontend public anon key, no bearer identity, and a fixed nonexistent UUID. Responses were summarized without logging response bodies or credentials. No accounts, rows, files, or settings were created or changed.
+
+| Check | Activity | Result | Notes |
+|---|---|---|---|
+| Auth service reachability/config | Read-only `GET /auth/v1/settings` | PASS — HTTP 200 | Signup is enabled and email auto-confirm is disabled in the returned public Auth settings. No sign-up or login request was sent. |
+| Anonymous profile and document table access | Read-only PostgREST `GET` requests for one `id` from `profiles` and `documents` | PASS — both HTTP 401 | Anonymous Data API reads were rejected. This does not verify authenticated RLS policies. |
+| Private Storage bucket metadata | Read-only `GET /storage/v1/bucket/documents` without a user token | PASS — HTTP 400 | Anonymous metadata request was denied/not found. No object download was attempted; private object-level policy was not verified with a real file. |
+| Unauthenticated document operation | `POST /functions/v1/document-get` with a fixed nonexistent UUID and no bearer token | PASS — HTTP 401 | Edge Function rejected the request before returning document data. |
+| Malformed bearer token | Same document-get operation with a deliberately invalid token | PASS — HTTP 401 | Invalid token was rejected. A valid user token was unavailable. |
+| Unauthenticated document/admin functions | POST with no bearer token to preview, download, edit, delete, share, upload, set-role, and audit-query functions | PASS — all HTTP 401 | All eight deployed function routes denied unauthenticated requests. No function was invoked as a user or admin. |
+| Function CORS | Read-only `OPTIONS` preflight from `http://127.0.0.1:4173` to document-get | PASS — HTTP 204 | Exact local origin was allowed. Production-origin behavior was not checked. |
+| Authenticated sign-in/session and role workflows | No valid isolated test-user session supplied | NOT TESTED | Sign-up, login, logout, session persistence, Admin/Owner/Editor/Viewer permissions, upload, grant/revoke, audit visibility, and post-revocation access still require test identities. |
+| Local DB/API suites and mutation harness | Not run | BLOCKED | Bash, Docker, Supabase CLI, and a local PostgreSQL test server are unavailable here. Hosted project was not used for destructive test suites. |
+
+These checks establish only that the hosted test project's public Auth endpoint is reachable and that the tested anonymous routes deny requests. They do not establish valid-token identity handling, role authority, authenticated RLS, owner/viewer permissions, Storage object access, audit outcomes, database migration state, or Vercel deployment behavior.

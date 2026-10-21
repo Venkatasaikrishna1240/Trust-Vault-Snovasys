@@ -1,6 +1,6 @@
 # TrustVault evidence
 
-This folder contains results and procedures from the 2026-10-20 security-hardening session.
+This folder contains results and procedures from the 2026-10-20 security-hardening work and the 2026-10-21 pre-deployment audit.
 
 - `security-test-results.md` records the exact checks run, failures, retries, and checks blocked by missing local services.
 - `manual-test-cases.md` contains reproducible dummy-data checks. The manual cases are **not tested** unless an actual result is recorded.

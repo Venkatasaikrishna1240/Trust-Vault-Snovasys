@@ -121,14 +121,14 @@ export default function UploadPage() {
     <>
       <PageHeader
         title="Upload document"
-        description="Files are checked and stored securely. Every action is recorded in the audit log."
+        description="Files are validated server-side and sensitive document operations are audited."
       />
 
       {/* Security notice banner */}
       <div className="mb-6 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900">
         <Sparkles className="h-4 w-4 text-blue-600 shrink-0" aria-hidden="true" />
         <span className="font-medium">
-          Your files are entering the vault. Encrypted in private storage and sealed with SHA-256 verification.
+          Files are validated before storage. Access is checked server-side and file integrity is verified with SHA-256.
         </span>
       </div>
 

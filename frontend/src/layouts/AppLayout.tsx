@@ -106,9 +106,9 @@ export default function AppLayout() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
           </span>
-          <span className="font-semibold text-slate-300">Vault Active</span>
+          <span className="font-semibold text-slate-300">Signed in</span>
         </div>
-        <span className="font-mono text-slate-400 text-2xs">256-bit AES</span>
+        <span className="font-mono text-slate-400 text-2xs">Access checked per request</span>
       </div>
 
       <div className="mb-2.5 flex items-center justify-between gap-2 px-1">

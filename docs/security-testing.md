@@ -5,7 +5,7 @@ Run tests only against a disposable local Supabase stack or a dedicated test pro
 ## Local setup
 
 1. Install dependencies and start a local Supabase stack using the steps in `local-development.md`.
-2. Use `frontend/.env.example` and `supabase/functions/.env.example` as templates. The frontend receives only the local URL and public anon/publishable key. Supabase supplies service credentials to local Edge Functions.
+2. Create `frontend/.env` with the local URL and public anon/publishable key; this checkout has no `frontend/.env.example`. Copy `supabase/functions/.env.example` for local function settings. Supabase supplies service credentials to local Edge Functions.
 3. Use the fictional local seed identities or a separate disposable project. Keep owner A, owner B, viewer, and admin as distinct Auth users. The local seed password is documented in `docs/local-development.md`; do not use it outside local development.
 4. Start local functions and the frontend. Confirm the URL is local before using `scripts/provision-demo.mjs`; that script has privileged behavior and resets passwords for matching existing demo accounts.
 
@@ -27,7 +27,7 @@ npm run test:backend:local
 
 That script rebuilds its disposable backend test database. It must not be pointed at a hosted/production project. `npm run test:mutation` intentionally breaks authorization in that disposable harness and expects negative tests to fail. `npm run test:functions` is a placeholder, not a test suite.
 
-See `../evidence/security-test-results.md` for the exact commands that were run in this workspace and which were blocked.
+See `../evidence/security-test-results.md` for exact commands and hosted checks run in this workspace, including which tests were blocked.
 
 ## Manual authorization checks
 
@@ -48,4 +48,4 @@ Expected HTTP status codes and metadata behavior are in `API.md`. Keep an alread
 - Keep raw output sanitized. Never capture secrets, login forms, private documents, or real-user information.
 - Mark a test NOT TESTED if credentials, local services, or a browser session are unavailable.
 - Do not convert a static code review, a test definition, a mocked test, or an old pass count into a runtime PASS.
-- Hosted Auth, Storage, CORS, migration state and deployment must be verified separately against the intended project. No such hosted check was performed for this review.
+- Hosted checks are scoped and must use a confirmed dedicated test project. This review made only read-only anonymous Auth/API/Storage checks and one local-origin function preflight; it did not verify valid-user authentication, authenticated RLS, object-level Storage access, hosted migration state, production-origin CORS, or deployment. See `../evidence/security-test-results.md`.

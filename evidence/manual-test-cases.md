@@ -2,7 +2,7 @@
 
 Run only against local Supabase or a dedicated disposable test project with dummy data. Use separate Admin, Owner A, Owner B, Viewer, and Outsider identities. Do not use production data, production credentials, real documents, or service-role keys in a browser.
 
-**Execution status:** These cases are procedures only. No manual browser/API case below was executed in the 2026-10-20 session.
+**Execution status:** These cases are procedures only and remain **NOT TESTED**. The 2026-10-21 local unauthenticated browser smoke check is recorded in `security-test-results.md`; it was not a complete execution of M-01–M-14.
 
 | ID | Procedure | Expected result | Actual |
 |---|---|---|---|

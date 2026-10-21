@@ -12,8 +12,16 @@ Do not infer deployed behavior from local source. Verify the Supabase project re
 6. Deploy all current functions: `npx supabase functions deploy`. Nine source endpoints are configured: admin-audit-query, admin-set-role, document-delete, document-download, document-edit, document-get, document-preview, document-share, document-upload. Verify with `npx supabase functions list --project-ref <ref>`.
 7. Auth settings: configure Site URL/redirects for deployed frontend, enable email confirmation per production policy, and keep minimum password length aligned with application validation (12 characters). Apply MFA policy for administrators operationally if required; repository does not enforce MFA.
 8. Create the first administrator through a trusted operator path after the Auth user/profile exists. The app cannot create admins. Never grant admin via user metadata. Use a strong unique password through Auth, not SQL.
-9. Deploy frontend to Vercel with project root `frontend` and only `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` set as client-visible variables. Never put service-role/secret keys in Vercel frontend environment.
+9. Deploy frontend to Vercel with project root `frontend`, framework preset Vite, build command `npm run build`, and output directory `dist`. Set only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as client-visible variables. Never put service-role/secret keys in Vercel frontend environment. `frontend/vercel.json` provides the SPA rewrite to `/index.html` and the Content-Security-Policy, `nosniff`, and referrer headers; verify those response headers on the deployed domain.
 10. Run live smoke checks: recipient lookup, upload, read preview, editor current/history download (only after 0900), revoke, admin role update, admin audit query, Storage direct client denial, and notification delivery. Use test-only users to verify direct/global share alerts, editor version updates, recipient-only reads, realtime popup, unread/read state and delivery after a missed event/poll. Record actual outcome and project ref without exposing keys.
+
+## Vercel post-deployment checks
+
+- Confirm the Vercel project root is `frontend`, the framework preset is Vite, the build command is `npm run build`, and the output directory is `dist`.
+- Confirm only `VITE_SUPABASE_URL` and the public `VITE_SUPABASE_ANON_KEY` are present in frontend environment settings; do not copy any service-role/secret value into Vercel.
+- Load `/login`, then directly load and refresh `/documents` and `/documents/<test-id>` to verify the SPA rewrite; unauthenticated requests should return to sign-in.
+- Inspect deployed response headers for the CSP, including `frame-src 'self' blob:` for PDF preview, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` from `frontend/vercel.json`.
+- Sign in with isolated test identities and run the live authorization smoke checks in step 10. Do not use production user data for negative tests.
 
 ## Demo data cautions
 

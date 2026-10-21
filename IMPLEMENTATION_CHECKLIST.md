@@ -1,5 +1,26 @@
-# Checklist (✔ = evidence exists; ✘ = not done/not verified)
-✔ Auth via Supabase Auth, verified per request (code; real Auth server ✘ not run) · ✔ Roles/permissions documented & enforced (db tests) · ✔ Upload validation (api tests)
-✔ Private bucket + restrictive Storage policy (SQL-level tests) · ✘ real Storage API test · ✔ RLS enabled & tested (93 tests) · ✔ Read/edit grants, grant/revoke · ✔ Unauthorised access denied, no metadata
-✔ Immediate revocation for next request (db+api tests) · ✔ success+denied audited · ✔ users can't alter audit (db+api) · ✔ search doesn't leak · ✔ admin audit dashboard (UI built; **not browser-tested**)
-✔ Security tests run (178 backend) · ✔ mutation test · ✔ frontend builds (17 tests + 1 todo) · ✘ Playwright E2E · ✘ live `supabase start` run · ✘ seed.sql / provision-demo execution · ✘ deployment · ✘ clean-clone on another machine · ✘ demo video (record separately)
+# Implementation and verification status
+
+Source implementation and test definitions are not equivalent to runtime verification. Current results are recorded in `evidence/security-test-results.md`; no production or hosted service was changed.
+
+## Source present; runtime boundary not verified
+
+- Supabase Auth session handling, route guards, Edge token verification, RLS policies, role/grant checks, private Storage policy, upload validation, audit chain, and document/admin UI are implemented in source.
+- DB/API tests define negative cases for auth, RLS, IDOR, grants/revocation, upload validation, audit behavior, Storage policy, and admin restrictions. They did not execute in the current environment.
+- Admin role management is limited to changing another non-admin between `owner` and `viewer`. Ban, account deletion, self-service password reset, and app-level MFA are not implemented.
+
+## Checks completed on 2026-10-21
+
+- Frontend production build and TypeScript check: PASS; Vite reports one minified chunk above 500 KiB.
+- Frontend tests: latest full rerun PASS (9 files, 30 passed, 1 existing todo). The first run had one timeout.
+- Edge Function Deno type-check: PASS.
+- Frontend and root npm dependency audits: zero known vulnerabilities reported.
+- Local unauthenticated browser smoke: login page, empty signup validation, protected deep-link redirect, and a 390px login viewport were checked with dummy Supabase settings. This did not exercise any signed-in workflow.
+- Static Vercel configuration check: JSON parses; SPA rewrite and `frame-src 'self' blob:` are present.
+
+## Not run or blocked
+
+- DB suite: BLOCKED at setup; all 166 tests skipped because `127.0.0.1:54329` refused the connection.
+- API suite: BLOCKED at setup; all 26 tests skipped for the same reason.
+- Mutation test: NOT RUN; it resets the disposable backend and the required test services are unavailable.
+- Real Supabase Auth, RLS, Storage direct-denial, isolated Admin/Owner A/Owner B/Viewer workflows, notification delivery, live Vercel headers/PDF rendering, and deployment: NOT TESTED.
+- No automated Playwright E2E suite, `supabase start`, seed/provisioning run, clean-clone test, demo video, migration application, push, or deployment was performed.

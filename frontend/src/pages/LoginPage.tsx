@@ -189,7 +189,7 @@ export default function LoginPage() {
         <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-2xs text-slate-400">
           <div className="flex items-center gap-1.5">
             <Lock className="h-3 w-3 text-blue-400" aria-hidden="true" />
-            <span>256-bit AES Private Storage</span>
+            <span>Private Object Storage</span>
           </div>
           <span className="text-slate-700">·</span>
           <div className="flex items-center gap-1.5">
@@ -199,7 +199,7 @@ export default function LoginPage() {
           <span className="text-slate-700">·</span>
           <div className="flex items-center gap-1.5">
             <Shield className="h-3 w-3 text-indigo-400" aria-hidden="true" />
-            <span>Strict RBAC</span>
+            <span>Per-Request Authorization</span>
           </div>
         </div>
       </div>

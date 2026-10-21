@@ -5,7 +5,7 @@
 
 ## Conclusion
 
-The broad read-only review initially reported no confirmed exploitable vulnerability. A focused follow-up found a transient private-data display gap during direct account replacement (A→B); it is fixed in this worktree and covered by a frontend regression test. The review also identified recipient directory disclosure from partial searches. The product's sharing workflow now intentionally supports suggestions by display name or email username; this is bounded, rate-limited, and audited, but still exposes matching email addresses to authenticated users. This residual trade-off is documented below. This is not a security certification: the DB/API suites have not run in this environment, and no hosted Supabase service or real browser session was exercised. See `evidence/security-test-results.md` for commands actually run and `docs/requirements-evidence.md` for requirement-level status.
+The broad read-only review initially reported no confirmed exploitable vulnerability. A focused follow-up found a transient private-data display gap during direct account replacement (A→B); it is fixed in this worktree and covered by a frontend regression test. The review also identified recipient directory disclosure from partial searches. The product's sharing workflow now intentionally supports suggestions by display name or email username; this is bounded, rate-limited, and audited, but still exposes matching email addresses to authenticated users. This residual trade-off is documented below. A follow-up against the owner-confirmed dedicated test project verified anonymous denial on selected API and Edge Function routes; valid-user workflows, authenticated RLS, Storage object access, database suites, and Vercel deployment remain unverified. This is not a security certification. See `evidence/security-test-results.md` for the exact checks and `docs/requirements-evidence.md` for requirement-level status.
 
 The reviewed boundary includes:
 
@@ -26,7 +26,7 @@ The medium issue is fixed in the current working tree. The low-severity recipien
 
 ## Limits and residual risks
 
-- Source and tests do not prove hosted state. The deployed Auth settings, policies, function versions, allowed origins, and secrets were not checked.
+- Source and tests do not prove hosted state. Public Auth settings, selected anonymous denial responses, deployed Edge Function routes, and one local-origin preflight were checked on the dedicated test project; authenticated policies, Storage object access, production-origin CORS, migration state, and deployment settings were not checked.
 - A pattern scan of tracked working-tree files and Git-reachable blobs found no recognizable Supabase service-role/secret values. This does not cover untracked files, unreachable Git objects, or credentials that are encoded/split or do not match known formats.
 - The DB/API tests use a local harness; they do not emulate GoTrue or the actual Supabase Storage API. This environment lacked Bash, PostgreSQL, PostgREST, and Docker, so those tests were not run.
 - An authorized request already in progress at revocation may complete. A user can retain bytes already previewed, downloaded, copied, or captured.
@@ -35,6 +35,10 @@ The medium issue is fixed in the current working tree. The low-severity recipien
 - No antivirus/content disarm, mandatory MFA, independent audit-head storage, backup-retention verification, or browser E2E suite is established by this repository.
 
 No database, hosted project, production data, or deployment was changed during this review.
+
+### Dedicated test-project follow-up — 2026-10-21
+
+Using only the configured public anon key and no user token, read-only requests received HTTP 401 for `profiles`, `documents`, and the unauthenticated document/admin Edge Function routes; the private bucket metadata request returned HTTP 400. A malformed bearer token was rejected with HTTP 401. Auth settings responded HTTP 200 (sign-up enabled, email auto-confirm disabled), and a preflight from the local app origin returned HTTP 204 with that origin allowed. No sign-up, login, row/file operation, migration, or setting change was performed. This is limited anonymous-denial evidence only; authenticated Admin/Owner/Editor/Viewer authorization and object-level Storage behavior remain NOT TESTED. See the detailed table in `evidence/security-test-results.md`.
 
 ## Seven-requirement review update — 2026-10-20
 
@@ -45,3 +49,18 @@ The repository was checked against the seven required areas in `docs/requirement
 The audit path review found that preview/download success rows were written by the authorization RPC before the Edge Function fetched bytes or checked their digest. Storage or integrity failure could therefore leave a success-shaped event for an operation that never returned content. The new local migration `20261020000300_audit_activity_details.sql` moves successful events to a service-role-only operation called after byte retrieval and verification; that operation rechecks current permission before writing. Audit write failures now surface and prevent the response from returning bytes. The admin query resolves names/emails and document filenames from trusted database records. Legacy success rows cannot prove delivery and are labelled accordingly in the UI.
 
 Frontend tests (7 files, 26 passed, 1 todo), frontend build/type-check, and Edge Function type-check passed. DB tests (160) and API tests (26) were attempted but all skipped at setup because PostgreSQL refused `127.0.0.1:54329`; the migration and live UI have not been tested or deployed. Thus the implementation is not yet runtime-verified at the database boundary. See `evidence/security-test-results.md`.
+
+## Pre-deployment verification update — 2026-10-21
+
+Static review of the current routes, auth context, document/admin pages, Edge handlers, RLS and service-function migrations found no confirmed critical/high exploitable issue. Source review is not a substitute for the database/API tests or live Auth/Storage checks, which could not run; see the dated evidence below.
+
+| Severity | Finding | Disposition |
+|---|---|---|
+| LOW | UI labels claimed “256-bit AES” without application-level encryption evidence, said every action was audited although malformed requests may fail before audit, and described unsupported tag search/quota indicators. | Fixed the copy and removed the unsupported indicators in the frontend. Supabase/provider at-rest encryption was not independently verified; do not describe this app as implementing client-side encryption. |
+| LOW | Recipient suggestions disclose up to 20 matching registered emails to signed-in searchers. | Existing intentional product behavior; query length, result limit, rate limiting, and audit reduce but do not eliminate account enumeration. DB/API regression cases remain unexecuted. |
+
+The two dependency audit commands reported zero known vulnerabilities. The frontend build and TypeScript/Deno checks passed. The first full frontend run had one timeout, but the subsequent full rerun passed (9 files, 30 passed, 1 todo); the focused permission test also passed. DB/API suites failed during setup because PostgreSQL at `127.0.0.1:54329` refused connections (166 DB and 26 API cases skipped). A local browser smoke test used dummy Supabase settings and exercised only unauthenticated UI behavior. No live project, migration, or deployment was touched.
+
+Static deployment-config review also found that the Vercel CSP default blocked `blob:` frames used by the PDF preview. `frame-src 'self' blob:` is now configured. The Vercel-served response header and live PDF rendering have not been verified.
+
+Residual readiness gaps include unverified hosted RLS/Storage/function configuration, no authenticated end-to-end browser run, browser-specific PDF Blob-preview isolation, no enforced MFA, and no self-service password reset, account ban, or account deletion. The current environment has no `frontend/.env.example`; its tracked deletion was preserved as requested.
