@@ -268,6 +268,8 @@ Manual testing should use distinct disposable Admin, Owner A, Owner B, Editor, a
 
 Actual Vercel response headers and rendered PDF preview must be checked after deployment; local JSON/config validation does not prove deployed behavior. The previous production browser inspection reported Google Fonts blocked by the deployed CSP; the local policy has been updated, but requires a Vercel redeploy to take effect.
 
+The 2026-10-21 production CORS diagnostic found that preflights from both `https://trust-vault-snovasys-19vk.vercel.app` and `https://trust-vault-snovasys.vercel.app` returned HTTP 403 with no allow-origin, while local development origins returned HTTP 204. Add the intended stable Vercel origin(s) to the existing Supabase Function secret `ALLOWED_ORIGINS` (comma-separated exact origins, no paths/wildcards, preserve other needed origins). The secret was not changed in this workspace. See [deployment troubleshooting](docs/deployment.md#cors-troubleshooting) and [live test evidence](evidence/security-test-results.md).
+
 ### Supabase
 
 - Configure Site URL and allowed redirect URLs for the actual deployment.

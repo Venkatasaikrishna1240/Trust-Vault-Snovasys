@@ -125,3 +125,17 @@ The user provided a screenshot of the production login page showing the generic 
 The frontend now maps known Auth error codes to safe actionable messages and has four focused tests. `npm --prefix frontend test -- --pool=threads --maxWorkers=1 src/tests/authErrors.test.ts` passed (1 file, 4 tests); `npm --prefix frontend run lint` and `npm --prefix frontend run build` passed. This source change is not yet deployed; Vercel must be redeployed before the login page can show the more specific message.
 
 Production browser inspection also reported CSP violations for the Google Fonts stylesheet. `frontend/vercel.json` now permits the exact Google Fonts stylesheet and font hosts used by `frontend/index.html`; this is a display/CSP issue, not the cause of the Auth rejection. Vercel must be redeployed and the response header rechecked.
+
+## Vercel production/preview CORS diagnostic — 2026-10-21
+
+The owner provided a production screenshot from `https://trust-vault-snovasys-19vk.vercel.app/documents/new`, where recipient search displayed the frontend's CORS/network error. Read-only `OPTIONS` preflight requests were sent to the configured Supabase project using the public anon key and standard Supabase JS request headers. No user token, account, file, or database data was used.
+
+| Origin | Function route | Preflight result |
+|---|---|---|
+| `https://trust-vault-snovasys-19vk.vercel.app` | `document-share`, `document-upload`, `admin-audit-query`, `document-get` | HTTP 403; no `Access-Control-Allow-Origin` |
+| `https://trust-vault-snovasys.vercel.app` | `document-share`, `document-upload`, `admin-audit-query`, `document-get` | HTTP 403; no `Access-Control-Allow-Origin` |
+| `http://127.0.0.1:4173`, `http://localhost:5173`, `http://localhost:5176` | `document-share` | HTTP 204; matching `Access-Control-Allow-Origin` |
+
+This confirms that both Vercel origins are not currently accepted by the deployed Edge Function CORS configuration. Recipient lookup uses `document-share`; upload uses `document-upload`; admin audit uses `admin-audit-query`. Their browser requests are blocked before authenticated handler logic executes, explaining the visible failure across those features. This does not establish that the database operations themselves pass after CORS is corrected.
+
+The production fix is an Edge Function environment-secret change, not a frontend application-code change: add the exact Vercel origins to the existing `ALLOWED_ORIGINS` value in the Supabase Dashboard for the project configured by this app. Keep any other origins that are still required; use comma-separated origins with no path and no wildcard. A stable production domain is preferable; add the `-19vk` hostname only if that deployment URL is intentionally used. The workspace has no authenticated Supabase CLI session, so no production secret or function was changed. Re-run preflights after the secret change and then exercise upload, recipient search, and admin audit with a test account.
