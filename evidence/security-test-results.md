@@ -161,3 +161,7 @@ A read-only `OPTIONS` preflight was sent to the `document-share` Edge Function f
 | Hosted migration/Auth/deployment | Not run | NOT TESTED | No migration, Auth ban/delete, production account, data, secret, or deployment was changed. Actual Supabase Auth Admin semantics and hosted RLS/Storage remain unverified. |
 
 The offboarding test definitions in `supabase/tests/api/offboarding.test.ts` cover non-admin direct invocation, stale-token database/function denial, share revocation and non-restoration, prevention of new grants to inactive accounts, retention of owned documents, blocked removal, Auth-delete failure/retry, idempotent removal and retained audit history. The local harness uses a test-only SQL function to delete disposable test Auth users and a mock Auth Admin ban state; it is not a substitute for disposable real Supabase Auth integration. Ownership transfer is not implemented; removal remains blocked until retained document/version/grant references are resolved through an approved process.
+
+## Users & Roles search UI — 2026-10-21
+
+The admin user list now filters by name/email and presents matching suggestions. After this UI-only change, `npm --prefix frontend run lint` passed (`tsc --noEmit`). No dedicated suggestion interaction test, full frontend test rerun, or production build was run afterward; manual case M-17 remains NOT TESTED. The change is in commit `7019890`; this check does not verify deployment.

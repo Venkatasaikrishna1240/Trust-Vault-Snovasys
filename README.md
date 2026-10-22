@@ -14,7 +14,7 @@ TrustVault is a React and Supabase document-management application for authentic
 - Metadata and inline preview for readers; current and historical attachment downloads for owners and editors.
 - Metadata changes and file replacement by owners/editors; deletion and sharing controls are owner-only.
 - Version history that records replacements and preserves metadata for prior versions.
-- Admin user-role management between `owner` and `viewer`, employee deactivation/reactivation, guarded permanent account removal, and a read-only audit activity view.
+- Admin user-role management with name/email search, employee deactivation/reactivation, guarded permanent account removal, and a read-only audit activity view.
 - Private Supabase Storage and append-only, hash-linked audit events.
 - Recipient-scoped in-app notifications for sharing and successful document updates.
 
@@ -59,6 +59,16 @@ Account roles are stored in `public.profiles.role` and are not taken from user m
 | Manage account roles / query full admin audit | Yes | No | No | No |
 
 Document-specific permissions are independent of account roles: an admin without a grant cannot read a private document, while a `viewer` may still own their own document. Inactive profiles are excluded from access helpers and protected RLS reads; revocation blocks subsequent requests after it commits.
+
+## Demo Login Credentials
+
+Use these demo accounts to explore the role-based workflows. Passwords should be shared privately; do not publish them in this repository.
+
+| Role | Email | What you can demonstrate |
+|---|---|---|
+| Admin | `boyinasaikrishna8@gmail.com` | User and role management, employee offboarding, and audit history. Admin status alone does not grant access to private documents. |
+| Owner | `23jr1a1240@gmail.com` | Upload and manage owned documents, share them, and control permissions. |
+| Viewer | `23jr1a1240@kitsguntur.ac.in` | Read and preview documents shared with this account; viewers cannot edit or download attachments. |
 
 ## Document lifecycle, sharing, and versions
 
@@ -134,7 +144,7 @@ npm run test:backend:local
 
 `npm run test:backend:local` rebuilds a disposable test database and requires the backend harness prerequisites. `npm run test:db` and `npm run test:api` require the test services to be running. `npm run test:mutation` intentionally tests a broken authorization condition and is only for its disposable harness. `npm run test:functions` is a placeholder; there are no separate Deno unit tests.
 
-At the 2026-10-21 review, the frontend build, frontend TypeScript check, configured Edge Function type-check, and constrained frontend suite passed (9 files, 30 passed, 1 existing todo). DB/API suites were blocked because local PostgreSQL at `127.0.0.1:54329` refused connections. A later read-only check against the owner-confirmed dedicated test project verified selected anonymous denials, but did not test authenticated authorization. Exact evidence and limitations are in [the test results](evidence/security-test-results.md) and [testing guide](docs/testing.md).
+The pre-deployment review passed the frontend build, TypeScript check, configured Edge Function type-check, and frontend suite (9 files, 30 passed, 1 existing todo). The later offboarding check passed the full frontend suite (10 files, 38 passed, 1 existing todo); after the subsequent Users & Roles search UI change, only `npm --prefix frontend run lint` was rerun. DB/API suites were blocked because local PostgreSQL at `127.0.0.1:54329` refused connections. A later read-only check against the owner-confirmed dedicated test project verified selected anonymous denials, but did not test authenticated authorization. Exact evidence and limitations are in [the test results](evidence/security-test-results.md) and [testing guide](docs/testing.md).
 
 ## Vercel deployment
 

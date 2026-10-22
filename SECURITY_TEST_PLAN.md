@@ -1,1 +1,1 @@
-# Security test plan → see docs/testing.md for the matrix and results. Files: supabase/tests/db/{rls,svc,audit}.test.ts, supabase/tests/api/security.test.ts, scripts/mutation-test.sh, frontend/src/tests.
+# Security test plan → see docs/testing.md for the matrix and results. Files include `supabase/tests/db/{rls,svc,audit,notifications}.test.ts`, `supabase/tests/api/{security,offboarding}.test.ts`, `scripts/mutation-test.sh`, and `frontend/src/tests`. Current results and unverified boundaries are recorded in `evidence/security-test-results.md`.

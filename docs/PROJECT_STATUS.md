@@ -63,3 +63,9 @@ Check the target project and run the backend and live integration procedures bef
 - A broader ad-hoc TypeScript command including the existing `security.test.ts` failed on its pre-existing `Uint8Array<ArrayBufferLike>`/`BlobPart` type mismatch at line 33. The isolated offboarding test source type-check passed.
 - `npm run test:backend:local`: BLOCKED before setup because Bash is not installed (`'bash' is not recognized`). The new migration and API integration tests have not run; no SQL migration was applied or deployed.
 - No hosted Supabase configuration/data, production Auth accounts, or deployment was changed. Stale-token/RLS, Auth Admin ban/delete, retry, and audit behavior remain test definitions pending an isolated backend run.
+
+## Users & Roles search update — 2026-10-21
+
+- The Users page now filters accounts by name/email and shows up to six matching suggestions; selecting one opens that account's details. This is client-side search over the admin account list and does not change server authorization.
+- Change is in commit [`7019890`](https://github.com/VenkatasaiKrishna1240/Trust-Vault-Snovasys/commit/7019890bb3cd613e6f1f7174c06e7c8d9d672d4a). `npm --prefix frontend run lint` passed after the change. No full frontend test suite or production build was rerun for this UI change.
+- The latest full frontend suite remains the earlier offboarding run (10 files, 38 passed, 1 existing todo); backend migration/API and hosted verification gaps above remain open.

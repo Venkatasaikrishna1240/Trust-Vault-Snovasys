@@ -49,7 +49,7 @@ The browser never receives `storage_key` values or reusable signed URLs. The `ap
 | `/documents` | Authenticated document listing/search. |
 | `/documents/new` | Authenticated upload. |
 | `/documents/:id` | Authenticated document details, overview, owner-only sharing tab, and accessible version history. |
-| `/admin/users` | Admin-only account-role management (also protected by server-side authorization). |
+| `/admin/users` | Admin-only user search, account-role management, and employee offboarding (also protected by server-side authorization). |
 | `/admin/audit` | Admin-only audit query and verification UI. |
 
 ## B. Registration, login, and account verification
@@ -70,7 +70,7 @@ The browser never receives `storage_key` values or reusable signed URLs. The `ap
 - **Organization-domain allowlist: not implemented.** `signUpSchema` validates general email syntax only. The Edge Function/auth/database profile provisioning path contains no configured approved organization domain. No domain name should be inferred or documented as allowed.
 - **Email confirmation:** the frontend expects confirmation when Supabase signup returns no session. Local `supabase/config.toml` explicitly sets `enable_confirmations = false` for local development. A read-only public Auth settings response from the owner-confirmed dedicated test project reported `mailer_autoconfirm=false`; no signup or confirmation email was sent during this review. Production Auth settings must be checked independently.
 - **What confirmation proves:** when enabled, Supabase email confirmation establishes control of the mailbox for that address under the configured Auth flow. It does not prove employment, student status, organizational affiliation, identity, or trustworthiness.
-- **Account status:** there is no application-owned ban/disabled status field or admin ban action. Auth rejects invalid/deleted/disabled sessions when `getUser()` cannot validate them. No custom “email verified and not banned” profile guard exists in this repository; unconfirmed-account behavior depends on Supabase Auth settings.
+- **Account status:** migration `20261021000100_employee_offboarding.sql` adds `profiles.is_active`. Administrators can deactivate/reactivate non-admin accounts through `admin-users`; database access helpers and RLS reject inactive accounts, including requests carrying an already-issued access token. Deactivation also revokes incoming grants; reactivation does not restore them. Supabase Auth suspension is additional protection, not the database authorization boundary. Eligible inactive accounts can be permanently removed only after retained document/version/grant references are resolved; removal preserves audit identity snapshots. Email-confirmation behavior still depends on Supabase Auth settings.
 - **Password recovery/MFA:** no self-service reset route or application-enforced MFA policy is implemented.
 
 ## C. Roles and permissions
@@ -81,7 +81,7 @@ The browser never receives `storage_key` values or reusable signed URLs. The `ap
 |---|---|---|
 | `viewer` | Yes; database default | Can upload/own documents if the profile exists; may receive document-specific grants. Cannot use admin tools. |
 | `owner` | No; admin or trusted operator | Same document ownership/grant model as other profiles. This account role is not ownership of all documents. |
-| `admin` | No; trusted out-of-band bootstrap | Can list/manage account roles and query the admin audit view. Admin status alone grants no document content access. |
+| `admin` | No; trusted out-of-band bootstrap | Can search/list accounts, manage eligible roles, deactivate/reactivate or initiate guarded removal for eligible employees, and query the admin audit view. Admin status alone grants no document content access. |
 
 An admin can change another non-admin profile between `owner` and `viewer`. The endpoint rejects self-change, editing an existing admin, and setting a role to `admin`. The UI prevents self-change and locks admin rows, but trusted SQL/service authorization is the control. First-admin creation is an out-of-band operator task.
 
@@ -108,11 +108,11 @@ RLS calls caller-bound access helpers that use `auth.uid()`. Edge Functions veri
 
 The authenticated app exposes `/admin/users` and `/admin/audit` only through a client-side admin guard. The guard is for user experience; server-side authorization is mandatory.
 
-- **User listing:** the users page reads RLS-protected `profiles` rows. Admins may see all profiles. The displayed fields include email, display name, role, and creation time.
+- **User listing:** `admin-users` calls the service-role-only `svc_admin_list_accounts` routine after server-side admin authorization. The list includes email, display name, role, status, creation time, and retained-record counts. The page filters by name/email and shows matching suggestions; this client-side search does not replace backend authorization.
 - **Role change:** `admin-set-role` calls `svc_admin_set_role`; an admin may set another non-admin account to `owner` or `viewer`. It cannot promote to admin, alter its own role, or change another admin. The role-change operation audits success and selected denials.
 - **Audit review:** `admin-audit-query` allows an admin to query/filter activity and optionally request hash-chain verification. It resolves actor, document, owner, affected-user and permission labels where available. It does not return document bytes or storage keys.
 - **Document investigation:** an admin can inspect audit metadata but cannot open a private document solely by being an admin. The admin must separately have document access.
-- **Ban/delete:** no in-app account ban, account deletion, or Auth-user removal feature exists. Trusted Supabase operators retain platform-level powers outside the application.
+- **Employee offboarding:** `admin-users` supports deactivation/reactivation and separately confirmed permanent removal. Self-offboarding and admin targets are rejected. Removal requires prior deactivation and is blocked while owned documents, authored versions, or issued permission records remain; TrustVault does not transfer or delete those records. The staged Auth deletion retains an independent offboarding snapshot and audit history. These behaviors are implemented in source, but migration/API integration and real Auth Admin behavior remain unverified until tested in a disposable backend.
 - **Ordinary-user restrictions:** role management and full audit querying are authorized in database service functions using the profile role. Client route hiding alone is not trusted.
 
 ## E. Document lifecycle and sharing
@@ -226,6 +226,7 @@ Current local migration files, in order:
 11. `20261020000200_recipient_name_and_username_search.sql` — bounded display-name/email-username suggestions.
 12. `20261020000300_audit_activity_details.sql` — resolved audit activity and post-verification delivery recording.
 13. `20261020000500_user_notifications.sql` — notification table, triggers, policy, RPC, and Realtime publication.
+14. `20261021000100_employee_offboarding.sql` — active-account enforcement and staged employee offboarding.
 
 For local development, install dependencies and use `npx supabase start`; it applies migrations and the local-only seed. `npx supabase db reset` destructively recreates the local database and must not be used on hosted data. For a hosted project, verify the project reference, inspect migration history and `npx supabase db push --dry-run`, compare any pre-existing schema, and apply only reviewed expected migrations. Never edit a migration already applied to a shared database; create a new timestamped migration. The current deployment ledger must be checked before publication; source migration files do not prove deployment state.
 
@@ -278,8 +279,8 @@ An earlier CORS check found both Vercel origins rejected. A later check now obse
 - Explicitly choose the email-confirmation policy; production confirmation should not be inferred from local config.
 - Configure Edge Function `ALLOWED_ORIGINS` as exact comma-separated production origins with no wildcard. `MAX_UPLOAD_BYTES` must agree with Storage; Storage currently limits files to 10 MiB.
 - Supabase injects URL and public key into functions. Store service-role/secret values only in protected Edge Function environment.
-- Deploy reviewed migrations and all nine functions only after confirming project ref and migration state. Create the first admin via a trusted operator path after the Auth profile exists; the app cannot create admins.
-- The repository does not enforce organization email domains, MFA, account bans, or account deletion.
+- Deploy reviewed migrations and all ten functions only after confirming project ref and migration state. Create the first admin via a trusted operator path after the Auth profile exists; the app cannot create admins.
+- The repository does not enforce organization email domains or MFA. It implements application account deactivation/reactivation and guarded Auth-account removal; removal is blocked while retained document, version, or permission records remain. Real Auth Admin behavior and hosted migration state still require verification.
 
 ### Local environment and troubleshooting
 

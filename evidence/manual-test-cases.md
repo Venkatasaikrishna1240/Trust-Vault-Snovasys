@@ -2,7 +2,7 @@
 
 Run only against local Supabase or a dedicated disposable test project with dummy data. Use separate Admin, Owner A, Owner B, Viewer, and Outsider identities. Do not use production data, production credentials, real documents, or service-role keys in a browser.
 
-**Execution status:** These cases are procedures only and remain **NOT TESTED**. The 2026-10-21 local unauthenticated browser smoke check is recorded in `security-test-results.md`; it was not a complete execution of M-01–M-14.
+**Execution status:** These cases are procedures only and remain **NOT TESTED**. The 2026-10-21 local unauthenticated browser smoke check is recorded in `security-test-results.md`; it was not a complete execution of M-01–M-17.
 
 | ID | Procedure | Expected result | Actual |
 |---|---|---|---|
@@ -22,6 +22,7 @@ Run only against local Supabase or a dedicated disposable test project with dumm
 | M-14 | As Owner A, share a dummy document directly, then create a separate global share. Edit metadata and replace each file as an authorized actor. Check recipient bells, unread counts, popups and panels. Mark notices read, open a notice, revoke direct access, and try opening it again. Repeat an event after disconnecting Realtime long enough to exercise polling. | Direct recipients and all signed-in users for global documents receive notices for each successful edit/replacement; read state updates; opening uses ordinary access checks; revocation denies access even when an old notice remains. No notice is created for a failed edit. | NOT TESTED |
 | M-15 | With disposable Admin, Owner A, and Viewer accounts, share a harmless document to Viewer. Call `admin-users` as Owner A to deactivate Viewer; reuse Viewer's old token against document Edge Functions, PostgREST document/version/notification reads, and direct Storage. Try granting access to Viewer again. | Non-admin call is denied. Viewer is inactive, cannot access protected operations or previously shared files, cannot receive a new grant, and can read only their own profile status. Owner A's document remains intact and accessible. Audit records deactivation, grant revocation, and session suspension outcome. | NOT TESTED |
 | M-16 | Reactivate the inactive Viewer and retry the old document request. Explicitly grant access again only after confirming account status. Then deactivate a separate employee who owns a dummy document and attempt permanent removal; finally use a documentless disposable account to test typed-email confirmation, injected Auth deletion failure/retry, repeat removal, and audit lookup after removal. | Reactivation does not restore old grants. Removal of a document owner is blocked without deleting/transferring data. A documentless account can be removed idempotently; partial failures remain retryable, and account-removal audit snapshots survive profile/Auth deletion. Self-removal and admin-target removal are denied. | NOT TESTED |
+| M-17 | In Users & Roles, enter a partial display name and email into the search field, choose a suggestion, then clear the query and try a non-matching term. | Suggestions match account name/email, selecting a result opens that account's details, clearing restores the full list, and no-match state is clear. | NOT TESTED |
 
 ## Five-minute demo checklist
 
