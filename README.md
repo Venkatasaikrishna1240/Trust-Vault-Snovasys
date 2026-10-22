@@ -111,10 +111,68 @@ Follow [the local development guide](docs/local-development.md) for the complete
 
 1. Install root and frontend dependencies.
 2. Start a disposable local Supabase stack with `npx supabase start`.
-3. Create `frontend/.env` with the local `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values printed by the CLI. This checkout has no `frontend/.env.example`.
-4. Serve the Edge Functions and start Vite in separate terminals.
+3. If they do not already exist, copy `frontend/.env.example` to `frontend/.env` and `supabase/functions/.env.example` to `supabase/functions/.env`. Replace the frontend public key placeholder with the local anon/publishable key printed by the CLI; preserve existing local files.
+4. Serve the Edge Functions and start Vite in separate terminals. Vite stays on port 5173 (it fails rather than silently switching ports); both `http://localhost:5173` and `http://127.0.0.1:5173` are supported.
 
-Never put a service-role/secret key in frontend configuration or commit local `.env` files. Local seeded accounts and their shared password are for the local stack only; never use them against a hosted project.
+The local Supabase Auth config sets the Site URL to `http://localhost:5173` and allows both local origins as redirect URLs. Function CORS permits those two origins, with exact origins only; it does not use wildcard CORS. Vite binds IPv4 loopback only and is not exposed on the LAN. Never put a service-role/secret key in frontend configuration or commit local `.env` files. Local seeded accounts and their shared password are for the local stack only; never use them against a hosted project.
+
+PowerShell quick start from the repository root (leave each terminal running):
+
+```powershell
+# Terminal 1
+npm install
+npm --prefix frontend install
+npx supabase start
+
+# Terminal 2: preserve any existing local env files
+if (-not (Test-Path 'frontend\.env')) { Copy-Item 'frontend\.env.example' 'frontend\.env' }
+if (-not (Test-Path 'supabase\functions\.env')) { Copy-Item 'supabase\functions\.env.example' 'supabase\functions\.env' }
+# Edit frontend\.env and replace VITE_SUPABASE_ANON_KEY with the local public key from `supabase start`.
+npx supabase functions serve --env-file supabase/functions/.env
+
+# Terminal 3
+npm run dev
+```
+
+Open `http://localhost:5173` or `http://127.0.0.1:5173`. Full local requirements and stop/reset guidance are in [the local development guide](docs/local-development.md).
+
+### Supabase configuration for judging
+
+For a hosted Supabase project used with the deployed app, in **Authentication → URL Configuration** set the Site URL to `https://trust-vault-snovasys-19vk.vercel.app` and add these exact Additional Redirect URLs:
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+```
+
+In **Edge Functions → Secrets**, set `ALLOWED_ORIGINS` to the production origin `https://trust-vault-snovasys-19vk.vercel.app` plus any other production origins already in use, comma-separated and without paths or a trailing slash. The function source separately allows HTTP localhost/loopback origins for local development. The platform must provide the function runtime with `SUPABASE_URL`, an anon/publishable key, and a service-role/secret key; Supabase's standard Edge Function runtime provides project credentials. If configuring custom secrets, keep privileged keys exclusively in the Edge Function runtime. Do not use `*`. These are instructions only; no hosted project settings or deployments have been changed or verified here. Keep production email confirmation policy and existing origins intact.
+
+The hosted database must have all reviewed migrations applied before its matching functions are deployed; do not assume local migrations are deployed. First verify the project reference and inspect pending migrations:
+
+```powershell
+npx supabase login
+npx supabase link --project-ref <verified-project-ref>
+npx supabase migration list --linked
+npx supabase db push --dry-run
+```
+
+Stop if the dry run includes unexpected migrations and reconcile hosted schema/history before applying anything. After explicit review, apply the intended migrations with `npx supabase db push --linked`. Set function secrets through the dashboard or a protected local env file (`npx supabase secrets set --env-file <protected-env-file>`); never place service-role/secret keys in frontend variables. Deploy each required function with the verified project ref:
+
+```powershell
+$projectRef = "<verified-project-ref>"
+$functions = @(
+  "document-upload", "document-download", "document-preview", "document-get",
+  "document-edit", "document-delete", "document-share",
+  "admin-audit-query", "admin-set-role", "admin-users"
+)
+foreach ($function in $functions) {
+  npx supabase functions deploy $function --project-ref $projectRef
+  if ($LASTEXITCODE -ne 0) { throw "Deployment failed for $function" }
+}
+npx supabase functions list --project-ref $projectRef
+```
+
+All ten functions require gateway JWT verification, and the application also verifies each caller with Auth `getUser()`. Confirm this remains enabled in the deployed function settings. See [deployment instructions](docs/deployment.md) and [local development](docs/local-development.md) for complete procedures and safety checks.
 
 ## Database and migrations
 
