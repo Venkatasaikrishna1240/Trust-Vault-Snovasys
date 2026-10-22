@@ -22,7 +22,7 @@ export function loadConfig(get: (k: string) => string | undefined = (k) => Deno.
     anonKey: anon,
     serviceKey: service,
     // Never "*": production origins are listed explicitly (ALLOWED_ORIGINS=https://app.example.com,...)
-    allowedOrigins: (get('ALLOWED_ORIGINS') ?? 'http://localhost:5173,http://localhost:5174,http://localhost:5175').split(',').map((s) => s.trim()).filter(Boolean),
+    allowedOrigins: (get('ALLOWED_ORIGINS') ?? 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://localhost:5175').split(',').map((s) => s.trim()).filter(Boolean),
     maxUploadBytes: Number.isFinite(max) ? Math.min(Math.max(max, 1), 20 * 1024 * 1024) : 10 * 1024 * 1024,
   };
 }

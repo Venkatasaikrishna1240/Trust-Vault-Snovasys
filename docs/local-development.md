@@ -28,20 +28,21 @@ Leave this terminal and the stack running. If the CLI reports that Docker is una
 
 ### Configure the local environment files
 
-Open a second PowerShell terminal at the repository root. This checkout has no `frontend/.env.example`, so create `frontend/.env` manually with the values from the local Supabase CLI output. Copy the Edge Function example if you do not already have a local file:
+Open a second PowerShell terminal at the repository root. Copy the frontend and Edge Function examples:
 
 ```powershell
+if (-not (Test-Path 'frontend\.env')) { Copy-Item 'frontend\.env.example' 'frontend\.env' }
 if (-not (Test-Path 'supabase\functions\.env')) { Copy-Item 'supabase\functions\.env.example' 'supabase\functions\.env' }
 ```
 
-Create `frontend\.env` with the values from the output of `npx supabase start`:
+Edit `frontend\.env` with the local API URL and public anon/publishable key from the output of `npx supabase start`:
 
 ```dotenv
 VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_ANON_KEY=<the local anon or publishable key printed by Supabase CLI>
 ```
 
-Keep the example's `ALLOWED_ORIGINS=http://localhost:5173` and `MAX_UPLOAD_BYTES=10485760` values in `supabase/functions/.env` for the default local Vite port. These are development settings, not hosted credentials. Never put a service-role/secret key in `frontend/.env`.
+Keep the example's `ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173` and `MAX_UPLOAD_BYTES=10485760` values in `supabase/functions/.env` for the default local Vite port. These are development settings, not hosted credentials. Never put a service-role/secret key in `frontend/.env`.
 
 ### Terminal 2 — serve the Edge Functions
 
@@ -61,9 +62,9 @@ Open another PowerShell terminal at the repository root and run:
 npm run dev
 ```
 
-Open the local URL Vite prints (normally `http://localhost:5173`). For the local seeded demo, the accounts are `admin@trustvault.test`, `owner@trustvault.test`, `owner2@trustvault.test`, `viewer@trustvault.test`, and `outsider@trustvault.test`; their shared password is `LocalDemo-Only-1234`. These accounts and this password are for the local seeded database only. Never use them on a hosted project.
+Open either `http://localhost:5173` or `http://127.0.0.1:5173`. Vite binds only IPv4 loopback, is pinned to port 5173, and exits if it is occupied rather than silently switching ports; it is not exposed on the LAN. The local Auth config uses `http://localhost:5173` as its Site URL and allows both local origins as redirect URLs. Function CORS allows these local HTTP loopback origins and never emits wildcard CORS headers. For the local seeded demo, the accounts are `admin@trustvault.test`, `owner@trustvault.test`, `owner2@trustvault.test`, `viewer@trustvault.test`, and `outsider@trustvault.test`; their shared password is `LocalDemo-Only-1234`. These accounts and this password are for the local seeded database only. Never use them on a hosted project.
 
-If the frontend URL or public key changes, edit `frontend/.env` and restart the Vite server. If you choose another frontend port, update `ALLOWED_ORIGINS` in `supabase/functions/.env` and restart the function server. Do not expose a service-role key in browser configuration.
+If the local Supabase URL or public key changes, edit `frontend/.env` and restart Vite. If you explicitly choose another port, add its exact URL to Supabase Auth redirect URLs and `ALLOWED_ORIGINS` and restart the affected services. Do not expose a service-role key in browser configuration.
 
 ## Stop and reset
 
