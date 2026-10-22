@@ -123,7 +123,7 @@ Accounts with the admin role see **Users & Roles** and **Audit log** in navigati
 
 ### Users & Roles
 
-The Users page lists employee names, emails, roles, account status, owned-document counts, and join dates. An administrator can change another non-admin active account between **Viewer** and **Owner**. Admin accounts and the current administrator are not available for role changes or offboarding.
+The Users page lists employee names, emails, roles, account status, owned-document counts, and join dates. Search by name or email; matching suggestions appear as you type, and selecting one opens that employee's details. An administrator can change another non-admin active account between **Viewer** and **Owner**. Admin accounts and the current administrator are not available for role changes or offboarding.
 
 Select **Manage** to inspect the employee's email, role, status, owned documents, authored versions, and issued permission records.
 

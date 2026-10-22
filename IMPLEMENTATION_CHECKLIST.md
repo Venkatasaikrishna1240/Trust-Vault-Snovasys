@@ -6,12 +6,12 @@ Source implementation and test definitions are not equivalent to runtime verific
 
 - Supabase Auth session handling, route guards, Edge token verification, RLS policies, role/grant checks, private Storage policy, upload validation, audit chain, and document/admin UI are implemented in source.
 - DB/API tests define negative cases for auth, RLS, IDOR, grants/revocation, upload validation, audit behavior, Storage policy, and admin restrictions. They did not execute in the current environment.
-- Admin role management is limited to changing another non-admin between `owner` and `viewer`. Ban, account deletion, self-service password reset, and app-level MFA are not implemented.
+- Admins can change another non-admin between `owner` and `viewer`, search the user list by name/email, and use the implemented deactivate/reactivate and guarded removal workflow. Offboarding migration/API behavior and real Auth Admin integration remain unverified; ownership transfer is not implemented. Self-service password reset and app-level MFA are not implemented.
 
 ## Checks completed on 2026-10-21
 
 - Frontend production build and TypeScript check: PASS; Vite reports one minified chunk above 500 KiB.
-- Frontend tests: latest full rerun PASS (9 files, 30 passed, 1 existing todo). The first run had one timeout.
+- Frontend tests: the full offboarding-check rerun passed (10 files, 38 passed, 1 existing todo). This preceded the later Users & Roles search UI change; only `npm --prefix frontend run lint` was rerun after that change.
 - Edge Function Deno type-check: PASS.
 - Frontend and root npm dependency audits: zero known vulnerabilities reported.
 - Local unauthenticated browser smoke: login page, empty signup validation, protected deep-link redirect, and a 390px login viewport were checked with dummy Supabase settings. This did not exercise any signed-in workflow.
